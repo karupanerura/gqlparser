@@ -1,0 +1,6 @@
+github.com/google/go-cmp v0.6.0 h1:ofyhxvXcZhMsU5ulbFiLKl/XBFqE1GSq7atu8tAmTRI=
+github.com/google/go-cmp v0.6.0/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
+github.com/karupanerura/runetrie v0.0.0-20240407115217-0c4d1bacfe03 h1:WKCTmLARvgUzlLgOO80rYtuKqIfVtlzZ5fjgGMk2rR8=
+github.com/karupanerura/runetrie v0.0.0-20240407115217-0c4d1bacfe03/go.mod h1:VtF/t1d8A2Tg+8yDQE3/yg/pLXev0fRyl6GcbuKybvA=
+github.com/karupanerura/runetrie v0.0.0-20240408160441-49a8fadb8dd0 h1:EMcdgDf4jRMufBQqDi0LukPJLUceEVQQtblevnKYhUo=
+github.com/karupanerura/runetrie v0.0.0-20240408160441-49a8fadb8dd0/go.mod h1:AcFm3vM3k87RfuMPAyXWseB4JwAi5q7hHWDIvugKGbU=
