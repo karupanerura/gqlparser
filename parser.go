@@ -12,6 +12,48 @@ var (
 	ErrUnexpectedToken = errors.New("unexpected token")
 )
 
+func ParseQueryOrAggregationQuery(ts TokenSource) (*Query, *AggregationQuery, error) {
+	var query AggregationQuery
+	acceptor := tokenAcceptors{
+		skipWhitespaceToken,
+		&conditionalTokenAcceptor{
+			ifAccept: acceptKeyword("AGGREGATE"),
+			andThen:  acceptAggregationQuery(&query),
+			orElse: &conditionalTokenAcceptor{
+				ifAccept: acceptKeyword("SELECT"),
+				andThen: tokenAcceptors{
+					acceptWhitespaceToken,
+					&conditionalTokenAcceptor{
+						ifAccept: acceptKeyword("COUNT", "COUNT_UP_TO", "SUM", "AVG"),
+						andThen:  acceptSelectAggregationQueryBody(&query),
+						orElse:   acceptSelectQueryBody(&query.Query),
+					},
+				},
+				orElse: tokenAcceptorFn(func(tr tokenReader) error {
+					token, err := tr.Read()
+					if err != nil {
+						return err
+					}
+					return fmt.Errorf("%w: %s at %d", ErrUnexpectedToken, token.GetContent(), token.GetPosition())
+				}),
+			},
+		},
+	}
+	// if err := acceptor.accept(&debugTokenSource{ts}); err != nil {
+	if err := acceptor.accept(ts); err != nil {
+		return nil, nil, err
+	}
+	if ts.Next() {
+		tok, _ := ts.Read()
+		return nil, nil, fmt.Errorf("%w: %s at %d", ErrUnexpectedToken, tok.GetContent(), tok.GetPosition())
+	}
+
+	if len(query.Aggregations) == 0 {
+		return &query.Query, nil, nil
+	}
+	return nil, &query, nil
+}
+
 func ParseAggregationQuery(ts TokenSource) (*AggregationQuery, error) {
 	var query AggregationQuery
 	acceptor := acceptAggregationQuery(&query)
@@ -33,34 +75,7 @@ func acceptAggregationQuery(query *AggregationQuery) tokenAcceptor {
 			ifAccept: acceptKeyword("SELECT"),
 			andThen: tokenAcceptors{
 				acceptWhitespaceToken,
-				acceptAggregations(&query.Aggregations),
-				acceptWhitespaceToken,
-				acceptKeyword("FROM"),
-				acceptWhitespaceToken,
-				acceptEitherToken(
-					func(tok *SymbolToken) error {
-						query.Kind = Kind(tok.Content)
-						return nil
-					},
-					func(tok *StringToken) error {
-						if tok.Quote != '`' {
-							return fmt.Errorf("%w: %s at %d", ErrUnexpectedToken, tok.Content, tok.Position)
-						}
-						query.Kind = Kind(tok.Content)
-						return nil
-					},
-				),
-				&conditionalTokenAcceptor{
-					ifAccept: tokenAcceptors{
-						acceptWhitespaceToken,
-						acceptKeyword("WHERE"),
-					},
-					andThen: tokenAcceptors{
-						acceptWhitespaceToken,
-						acceptCondition(&query.Where),
-					},
-					orElse: nopAcceptor,
-				},
+				acceptSelectAggregationQueryBody(query),
 			},
 			orElse: &conditionalTokenAcceptor{
 				ifAccept: acceptKeyword("AGGREGATE"),
@@ -83,6 +98,39 @@ func acceptAggregationQuery(query *AggregationQuery) tokenAcceptor {
 					return fmt.Errorf("%w: %s at %d", ErrUnexpectedToken, token.GetContent(), token.GetPosition())
 				}),
 			},
+		},
+	}
+}
+
+func acceptSelectAggregationQueryBody(query *AggregationQuery) tokenAcceptor {
+	return tokenAcceptors{
+		acceptAggregations(&query.Aggregations),
+		acceptWhitespaceToken,
+		acceptKeyword("FROM"),
+		acceptWhitespaceToken,
+		acceptEitherToken(
+			func(tok *SymbolToken) error {
+				query.Kind = Kind(tok.Content)
+				return nil
+			},
+			func(tok *StringToken) error {
+				if tok.Quote != '`' {
+					return fmt.Errorf("%w: %s at %d", ErrUnexpectedToken, tok.Content, tok.Position)
+				}
+				query.Kind = Kind(tok.Content)
+				return nil
+			},
+		),
+		&conditionalTokenAcceptor{
+			ifAccept: tokenAcceptors{
+				acceptWhitespaceToken,
+				acceptKeyword("WHERE"),
+			},
+			andThen: tokenAcceptors{
+				acceptWhitespaceToken,
+				acceptCondition(&query.Where),
+			},
+			orElse: nopAcceptor,
 		},
 	}
 }
@@ -337,6 +385,12 @@ func acceptQuery(query *Query) tokenAcceptor {
 		skipWhitespaceToken,
 		acceptKeyword("SELECT"),
 		acceptWhitespaceToken,
+		acceptSelectQueryBody(query),
+	}
+}
+
+func acceptSelectQueryBody(query *Query) tokenAcceptor {
+	return tokenAcceptors{
 		&conditionalTokenAcceptor{
 			ifAccept: acceptKeyword("DISTINCT"),
 			andThen:  acceptDistinctBody(query),

@@ -73,19 +73,24 @@ func (acceptor *conditionalTokenAcceptor) accept(tr tokenReader) error {
 	return acceptor.andThen.accept(tr)
 }
 
-func acceptKeyword(keyword string) tokenAcceptor {
+func acceptKeyword(keywords ...string) tokenAcceptor {
+	set := make(map[string]struct{}, len(keywords))
+	for _, keyword := range keywords {
+		set[keyword] = struct{}{}
+	}
+
 	return tokenAcceptorFn(func(tr tokenReader) error {
 		if token, err := tr.Read(); errors.Is(err, ErrEndOfToken) {
 			return ErrNoTokens
 		} else if err != nil {
 			return err
 		} else if t, ok := token.(*KeywordToken); ok {
-			if t.Name != keyword {
-				return fmt.Errorf("%w: %s at %d (expect to be %q)", ErrUnexpectedToken, t.GetContent(), t.GetPosition(), keyword)
+			if _, ok := set[t.Name]; !ok {
+				return fmt.Errorf("%w: %s at %d (expect to be any of %q)", ErrUnexpectedToken, t.GetContent(), t.GetPosition(), keywords)
 			}
 			return nil
 		} else {
-			return fmt.Errorf("%w: %s at %d (expect to be %q)", ErrUnexpectedToken, token.GetContent(), token.GetPosition(), keyword)
+			return fmt.Errorf("%w: %s at %d (expect to be any of %q)", ErrUnexpectedToken, token.GetContent(), token.GetPosition(), keywords)
 		}
 	})
 }
