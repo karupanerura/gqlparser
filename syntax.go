@@ -1,6 +1,8 @@
 package gqlparser
 
-import "github.com/karupanerura/runetrie"
+import (
+	"github.com/karupanerura/runetrie"
+)
 
 type Kind string
 

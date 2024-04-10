@@ -1,6 +1,13 @@
 github.com/google/go-cmp v0.6.0 h1:ofyhxvXcZhMsU5ulbFiLKl/XBFqE1GSq7atu8tAmTRI=
 github.com/google/go-cmp v0.6.0/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
-github.com/karupanerura/runetrie v0.0.0-20240407115217-0c4d1bacfe03 h1:WKCTmLARvgUzlLgOO80rYtuKqIfVtlzZ5fjgGMk2rR8=
-github.com/karupanerura/runetrie v0.0.0-20240407115217-0c4d1bacfe03/go.mod h1:VtF/t1d8A2Tg+8yDQE3/yg/pLXev0fRyl6GcbuKybvA=
-github.com/karupanerura/runetrie v0.0.0-20240408160441-49a8fadb8dd0 h1:EMcdgDf4jRMufBQqDi0LukPJLUceEVQQtblevnKYhUo=
-github.com/karupanerura/runetrie v0.0.0-20240408160441-49a8fadb8dd0/go.mod h1:AcFm3vM3k87RfuMPAyXWseB4JwAi5q7hHWDIvugKGbU=
+github.com/k0kubun/pp v3.0.1+incompatible h1:3tqvf7QgUnZ5tXO6pNAZlrvHgl6DvifjDrd9g2S9Z40=
+github.com/k0kubun/pp v3.0.1+incompatible/go.mod h1:GWse8YhT0p8pT4ir3ZgBbfZild3tgzSScAn6HmfYukg=
+github.com/karupanerura/runetrie v0.0.0-20240410000052-ea8ffbef19db h1:efQwiMbeaYIISaDyI5C7e40l/uP72Dfmq1j0atIopZw=
+github.com/karupanerura/runetrie v0.0.0-20240410000052-ea8ffbef19db/go.mod h1:86+ByI+VhbOijHwvLgtU3tvWcZH+2i7QdS1ByMFGaZo=
+github.com/mattn/go-colorable v0.1.13 h1:fFA4WZxdEF4tXPZVKMLwD8oUnCTTo08duU7wxecdEvA=
+github.com/mattn/go-colorable v0.1.13/go.mod h1:7S9/ev0klgBDR4GtXTXX8a3vIGJpMovkB8vQcUbaXHg=
+github.com/mattn/go-isatty v0.0.20 h1:xfD0iDuEKnDkl03q4limB+vH+GxLEtL/jb4xVJSWWEY=
+github.com/mattn/go-isatty v0.0.20/go.mod h1:W+V8PltTTMOvKvAeJH7IuucS94S2C6jfK/D7dTCTo3Y=
+golang.org/x/sys v0.6.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+golang.org/x/sys v0.19.0 h1:q5f1RH2jigJ1MoAWp2KTp3gm5zAGFUTarQZ5U386+4o=
+golang.org/x/sys v0.19.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
