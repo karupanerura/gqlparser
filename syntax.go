@@ -131,7 +131,10 @@ func (c *AndCompoundCondition) Bind(br *BindingResolver) error {
 }
 
 func (c *AndCompoundCondition) Normalize() Condition {
-	return c
+	return &AndCompoundCondition{
+		Left:  c.Left.Normalize(),
+		Right: c.Right.Normalize(),
+	}
 }
 
 type OrCompoundCondition struct {
@@ -154,7 +157,10 @@ func (c *OrCompoundCondition) Bind(br *BindingResolver) error {
 }
 
 func (c *OrCompoundCondition) Normalize() Condition {
-	return c
+	return &OrCompoundCondition{
+		Left:  c.Left.Normalize(),
+		Right: c.Right.Normalize(),
+	}
 }
 
 type Condition interface {
