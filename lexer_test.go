@@ -212,3 +212,11 @@ func TestLexer(t *testing.T) {
 		})
 	}
 }
+
+func FuzzLexer(f *testing.F) {
+	f.Fuzz(func(t *testing.T, src string) {
+		lexer := gqlparser.NewLexer(src)
+		_, _ = gqlparser.ReadAllTokens(lexer)
+		// should be no panics
+	})
+}

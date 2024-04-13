@@ -39,7 +39,6 @@ func ParseQueryOrAggregationQuery(ts TokenSource) (*Query, *AggregationQuery, er
 			},
 		},
 	}
-	// if err := acceptor.accept(&debugTokenSource{ts}); err != nil {
 	if err := acceptor.accept(ts); err != nil {
 		return nil, nil, err
 	}
@@ -57,7 +56,6 @@ func ParseQueryOrAggregationQuery(ts TokenSource) (*Query, *AggregationQuery, er
 func ParseAggregationQuery(ts TokenSource) (*AggregationQuery, error) {
 	var query AggregationQuery
 	acceptor := acceptAggregationQuery(&query)
-	// if err := acceptor.accept(&debugTokenSource{ts}); err != nil {
 	if err := acceptor.accept(ts); err != nil {
 		return nil, err
 	}
@@ -369,7 +367,6 @@ func acceptAggregations(aggregations *[]Aggregation) tokenAcceptor {
 func ParseQuery(ts TokenSource) (*Query, error) {
 	var query Query
 	acceptor := acceptQuery(&query)
-	// if err := acceptor.accept(&debugTokenSource{ts}); err != nil {
 	if err := acceptor.accept(ts); err != nil {
 		return nil, err
 	}

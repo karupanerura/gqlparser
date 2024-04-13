@@ -1,6 +1,8 @@
 package gqlparser_test
 
 import (
+	"encoding/binary"
+	rand "math/rand/v2"
 	"strconv"
 	"testing"
 
@@ -476,4 +478,326 @@ func normalizeTokens(tokens []gqlparser.Token) {
 			pos += len(t.GetContent())
 		}
 	}
+}
+
+func FuzzParseQueryOrAggregationQuery(f *testing.F) {
+	f.Fuzz(func(t *testing.T, s1, s2, s3, s4 string, i1, i2, i3 int64, f1, f2, f3 float64, length int, uint32seed uint32) {
+		parts := []gqlparser.Token{
+			&gqlparser.KeywordToken{Name: "SELECT"},
+			&gqlparser.KeywordToken{Name: "FROM"},
+			&gqlparser.KeywordToken{Name: "WHERE"},
+			&gqlparser.KeywordToken{Name: "AGGREGATE"},
+			&gqlparser.KeywordToken{Name: "OVER"},
+			&gqlparser.KeywordToken{Name: "COUNT"},
+			&gqlparser.KeywordToken{Name: "COUNT_UP_TO"},
+			&gqlparser.KeywordToken{Name: "SUM"},
+			&gqlparser.KeywordToken{Name: "AVG"},
+			&gqlparser.KeywordToken{Name: "AS"},
+			&gqlparser.KeywordToken{Name: "DISTINCT"},
+			&gqlparser.KeywordToken{Name: "ON"},
+			&gqlparser.KeywordToken{Name: "ORDER"},
+			&gqlparser.KeywordToken{Name: "BY"},
+			&gqlparser.KeywordToken{Name: "LIMIT"},
+			&gqlparser.KeywordToken{Name: "FIRST"},
+			&gqlparser.KeywordToken{Name: "OFFSET"},
+			&gqlparser.KeywordToken{Name: "KEY"},
+			&gqlparser.KeywordToken{Name: "PROJECT"},
+			&gqlparser.KeywordToken{Name: "NAMESPACE"},
+			&gqlparser.KeywordToken{Name: "ARRAY"},
+			&gqlparser.KeywordToken{Name: "BLOB"},
+			&gqlparser.KeywordToken{Name: "DATETIME"},
+			&gqlparser.KeywordToken{Name: "NULL"},
+			&gqlparser.WildcardToken{},
+			&gqlparser.WhitespaceToken{Content: " "},
+			&gqlparser.WhitespaceToken{Content: "\n"},
+			&gqlparser.WhitespaceToken{Content: "\t"},
+			&gqlparser.OperatorToken{Type: "AND"},
+			&gqlparser.OperatorToken{Type: "OR"},
+			&gqlparser.OperatorToken{Type: "="},
+			&gqlparser.OperatorToken{Type: "!="},
+			&gqlparser.OperatorToken{Type: ">"},
+			&gqlparser.OperatorToken{Type: ">="},
+			&gqlparser.OperatorToken{Type: "<"},
+			&gqlparser.OperatorToken{Type: "<="},
+			&gqlparser.OperatorToken{Type: "IN"},
+			&gqlparser.OperatorToken{Type: "NOT"},
+			&gqlparser.OperatorToken{Type: "CONTAINS"},
+			&gqlparser.OperatorToken{Type: "HAS"},
+			&gqlparser.OperatorToken{Type: "ANCESTOR"},
+			&gqlparser.OperatorToken{Type: "DESCENDANT"},
+			&gqlparser.OperatorToken{Type: "("},
+			&gqlparser.OperatorToken{Type: ")"},
+			&gqlparser.OperatorToken{Type: ","},
+			&gqlparser.StringToken{Quote: '"', Content: s1},
+			&gqlparser.StringToken{Quote: '\'', Content: s2},
+			&gqlparser.StringToken{Quote: '`', Content: s3},
+			&gqlparser.SymbolToken{Content: "symbol"},
+			&gqlparser.NumericToken{Int64: i1},
+			&gqlparser.NumericToken{Int64: i2},
+			&gqlparser.NumericToken{Int64: i3},
+			&gqlparser.NumericToken{Floating: true, Float64: f1},
+			&gqlparser.NumericToken{Floating: true, Float64: f2},
+			&gqlparser.NumericToken{Floating: true, Float64: f3},
+			&gqlparser.BooleanToken{Value: true},
+			&gqlparser.BooleanToken{Value: false},
+			&gqlparser.BindingToken{Index: 1},
+			&gqlparser.BindingToken{Name: "foo"},
+			&gqlparser.OrderToken{Descending: false},
+			&gqlparser.OrderToken{Descending: true},
+		}
+
+		var seed [32]byte
+		binary.BigEndian.PutUint32(seed[:], uint32seed)
+
+		r := rand.New(rand.NewChaCha8(seed))
+		var tokens []gqlparser.Token
+		for len(tokens) < length {
+			tokens = append(tokens, parts[r.IntN(len(parts))])
+		}
+		normalizeTokens(tokens)
+
+		_, _, _ = gqlparser.ParseQueryOrAggregationQuery(&sliceTokenSource{tokens})
+		// should be no panics
+	})
+}
+
+func FuzzParseAggregationQuery(f *testing.F) {
+	f.Fuzz(func(t *testing.T, s1, s2, s3, s4 string, i1, i2, i3 int64, f1, f2, f3 float64, length int, uint32seed uint32) {
+		parts := []gqlparser.Token{
+			&gqlparser.KeywordToken{Name: "SELECT"},
+			&gqlparser.KeywordToken{Name: "FROM"},
+			&gqlparser.KeywordToken{Name: "WHERE"},
+			&gqlparser.KeywordToken{Name: "AGGREGATE"},
+			&gqlparser.KeywordToken{Name: "OVER"},
+			&gqlparser.KeywordToken{Name: "COUNT"},
+			&gqlparser.KeywordToken{Name: "COUNT_UP_TO"},
+			&gqlparser.KeywordToken{Name: "SUM"},
+			&gqlparser.KeywordToken{Name: "AVG"},
+			&gqlparser.KeywordToken{Name: "AS"},
+			&gqlparser.KeywordToken{Name: "KEY"},
+			&gqlparser.KeywordToken{Name: "PROJECT"},
+			&gqlparser.KeywordToken{Name: "NAMESPACE"},
+			&gqlparser.KeywordToken{Name: "ARRAY"},
+			&gqlparser.KeywordToken{Name: "BLOB"},
+			&gqlparser.KeywordToken{Name: "DATETIME"},
+			&gqlparser.KeywordToken{Name: "NULL"},
+			&gqlparser.WildcardToken{},
+			&gqlparser.WhitespaceToken{Content: " "},
+			&gqlparser.WhitespaceToken{Content: "\n"},
+			&gqlparser.WhitespaceToken{Content: "\t"},
+			&gqlparser.OperatorToken{Type: "AND"},
+			&gqlparser.OperatorToken{Type: "OR"},
+			&gqlparser.OperatorToken{Type: "="},
+			&gqlparser.OperatorToken{Type: "!="},
+			&gqlparser.OperatorToken{Type: ">"},
+			&gqlparser.OperatorToken{Type: ">="},
+			&gqlparser.OperatorToken{Type: "<"},
+			&gqlparser.OperatorToken{Type: "<="},
+			&gqlparser.OperatorToken{Type: "IN"},
+			&gqlparser.OperatorToken{Type: "NOT"},
+			&gqlparser.OperatorToken{Type: "CONTAINS"},
+			&gqlparser.OperatorToken{Type: "HAS"},
+			&gqlparser.OperatorToken{Type: "ANCESTOR"},
+			&gqlparser.OperatorToken{Type: "DESCENDANT"},
+			&gqlparser.OperatorToken{Type: "("},
+			&gqlparser.OperatorToken{Type: ")"},
+			&gqlparser.OperatorToken{Type: ","},
+			&gqlparser.StringToken{Quote: '"', Content: s1},
+			&gqlparser.StringToken{Quote: '\'', Content: s2},
+			&gqlparser.StringToken{Quote: '`', Content: s3},
+			&gqlparser.SymbolToken{Content: "symbol"},
+			&gqlparser.NumericToken{Int64: i1},
+			&gqlparser.NumericToken{Int64: i2},
+			&gqlparser.NumericToken{Int64: i3},
+			&gqlparser.NumericToken{Floating: true, Float64: f1},
+			&gqlparser.NumericToken{Floating: true, Float64: f2},
+			&gqlparser.NumericToken{Floating: true, Float64: f3},
+			&gqlparser.BooleanToken{Value: true},
+			&gqlparser.BooleanToken{Value: false},
+			&gqlparser.BindingToken{Index: 1},
+			&gqlparser.BindingToken{Name: "foo"},
+			&gqlparser.OrderToken{Descending: false},
+			&gqlparser.OrderToken{Descending: true},
+		}
+
+		var seed [32]byte
+		binary.BigEndian.PutUint32(seed[:], uint32seed)
+
+		r := rand.New(rand.NewChaCha8(seed))
+		var tokens []gqlparser.Token
+		for len(tokens) < length {
+			tokens = append(tokens, parts[r.IntN(len(parts))])
+		}
+		normalizeTokens(tokens)
+
+		_, _ = gqlparser.ParseAggregationQuery(&sliceTokenSource{tokens})
+		// should be no panics
+	})
+}
+
+func FuzzParseQuery(f *testing.F) {
+	f.Fuzz(func(t *testing.T, s1, s2, s3, s4 string, i1, i2, i3 int64, f1, f2, f3 float64, length int, uint32seed uint32) {
+		parts := []gqlparser.Token{
+			&gqlparser.KeywordToken{Name: "SELECT"},
+			&gqlparser.KeywordToken{Name: "FROM"},
+			&gqlparser.KeywordToken{Name: "WHERE"},
+			&gqlparser.KeywordToken{Name: "DISTINCT"},
+			&gqlparser.KeywordToken{Name: "ON"},
+			&gqlparser.KeywordToken{Name: "ORDER"},
+			&gqlparser.KeywordToken{Name: "BY"},
+			&gqlparser.KeywordToken{Name: "LIMIT"},
+			&gqlparser.KeywordToken{Name: "FIRST"},
+			&gqlparser.KeywordToken{Name: "OFFSET"},
+			&gqlparser.KeywordToken{Name: "KEY"},
+			&gqlparser.KeywordToken{Name: "PROJECT"},
+			&gqlparser.KeywordToken{Name: "NAMESPACE"},
+			&gqlparser.KeywordToken{Name: "ARRAY"},
+			&gqlparser.KeywordToken{Name: "BLOB"},
+			&gqlparser.KeywordToken{Name: "DATETIME"},
+			&gqlparser.KeywordToken{Name: "NULL"},
+			&gqlparser.WildcardToken{},
+			&gqlparser.WhitespaceToken{Content: " "},
+			&gqlparser.WhitespaceToken{Content: "\n"},
+			&gqlparser.WhitespaceToken{Content: "\t"},
+			&gqlparser.OperatorToken{Type: "AND"},
+			&gqlparser.OperatorToken{Type: "OR"},
+			&gqlparser.OperatorToken{Type: "="},
+			&gqlparser.OperatorToken{Type: "!="},
+			&gqlparser.OperatorToken{Type: ">"},
+			&gqlparser.OperatorToken{Type: ">="},
+			&gqlparser.OperatorToken{Type: "<"},
+			&gqlparser.OperatorToken{Type: "<="},
+			&gqlparser.OperatorToken{Type: "IN"},
+			&gqlparser.OperatorToken{Type: "NOT"},
+			&gqlparser.OperatorToken{Type: "CONTAINS"},
+			&gqlparser.OperatorToken{Type: "HAS"},
+			&gqlparser.OperatorToken{Type: "ANCESTOR"},
+			&gqlparser.OperatorToken{Type: "DESCENDANT"},
+			&gqlparser.OperatorToken{Type: "("},
+			&gqlparser.OperatorToken{Type: ")"},
+			&gqlparser.OperatorToken{Type: ","},
+			&gqlparser.StringToken{Quote: '"', Content: s1},
+			&gqlparser.StringToken{Quote: '\'', Content: s2},
+			&gqlparser.StringToken{Quote: '`', Content: s3},
+			&gqlparser.SymbolToken{Content: "symbol"},
+			&gqlparser.NumericToken{Int64: i1},
+			&gqlparser.NumericToken{Int64: i2},
+			&gqlparser.NumericToken{Int64: i3},
+			&gqlparser.NumericToken{Floating: true, Float64: f1},
+			&gqlparser.NumericToken{Floating: true, Float64: f2},
+			&gqlparser.NumericToken{Floating: true, Float64: f3},
+			&gqlparser.BooleanToken{Value: true},
+			&gqlparser.BooleanToken{Value: false},
+			&gqlparser.BindingToken{Index: 1},
+			&gqlparser.BindingToken{Name: "foo"},
+			&gqlparser.OrderToken{Descending: false},
+			&gqlparser.OrderToken{Descending: true},
+		}
+
+		var seed [32]byte
+		binary.BigEndian.PutUint32(seed[:], uint32seed)
+
+		r := rand.New(rand.NewChaCha8(seed))
+		var tokens []gqlparser.Token
+		for len(tokens) < length {
+			tokens = append(tokens, parts[r.IntN(len(parts))])
+		}
+		normalizeTokens(tokens)
+
+		_, _ = gqlparser.ParseQuery(&sliceTokenSource{tokens})
+		// should be no panics
+	})
+}
+
+func FuzzParseCondition(f *testing.F) {
+	f.Fuzz(func(t *testing.T, s1, s2, s3, s4 string, i1, i2, i3 int64, f1, f2, f3 float64, length int, uint32seed uint32) {
+		parts := []gqlparser.Token{
+			&gqlparser.KeywordToken{Name: "KEY"},
+			&gqlparser.KeywordToken{Name: "PROJECT"},
+			&gqlparser.KeywordToken{Name: "NAMESPACE"},
+			&gqlparser.KeywordToken{Name: "ARRAY"},
+			&gqlparser.KeywordToken{Name: "BLOB"},
+			&gqlparser.KeywordToken{Name: "DATETIME"},
+			&gqlparser.KeywordToken{Name: "NULL"},
+			&gqlparser.WhitespaceToken{Content: " "},
+			&gqlparser.WhitespaceToken{Content: "\n"},
+			&gqlparser.WhitespaceToken{Content: "\t"},
+			&gqlparser.OperatorToken{Type: "AND"},
+			&gqlparser.OperatorToken{Type: "OR"},
+			&gqlparser.OperatorToken{Type: "="},
+			&gqlparser.OperatorToken{Type: "!="},
+			&gqlparser.OperatorToken{Type: ">"},
+			&gqlparser.OperatorToken{Type: ">="},
+			&gqlparser.OperatorToken{Type: "<"},
+			&gqlparser.OperatorToken{Type: "<="},
+			&gqlparser.OperatorToken{Type: "IN"},
+			&gqlparser.OperatorToken{Type: "NOT"},
+			&gqlparser.OperatorToken{Type: "CONTAINS"},
+			&gqlparser.OperatorToken{Type: "HAS"},
+			&gqlparser.OperatorToken{Type: "ANCESTOR"},
+			&gqlparser.OperatorToken{Type: "DESCENDANT"},
+			&gqlparser.OperatorToken{Type: "("},
+			&gqlparser.OperatorToken{Type: ")"},
+			&gqlparser.OperatorToken{Type: ","},
+			&gqlparser.StringToken{Quote: '"', Content: s1},
+			&gqlparser.StringToken{Quote: '\'', Content: s2},
+			&gqlparser.StringToken{Quote: '`', Content: s3},
+			&gqlparser.NumericToken{Int64: i1},
+			&gqlparser.NumericToken{Int64: i2},
+			&gqlparser.NumericToken{Int64: i3},
+			&gqlparser.NumericToken{Floating: true, Float64: f1},
+			&gqlparser.NumericToken{Floating: true, Float64: f2},
+			&gqlparser.NumericToken{Floating: true, Float64: f3},
+			&gqlparser.BooleanToken{Value: true},
+			&gqlparser.BooleanToken{Value: false},
+			&gqlparser.BindingToken{Index: 1},
+			&gqlparser.BindingToken{Name: "foo"},
+		}
+
+		var seed [32]byte
+		binary.BigEndian.PutUint32(seed[:], uint32seed)
+
+		r := rand.New(rand.NewChaCha8(seed))
+		var tokens []gqlparser.Token
+		for len(tokens) < length {
+			tokens = append(tokens, parts[r.IntN(len(parts))])
+		}
+		normalizeTokens(tokens)
+
+		_, _ = gqlparser.ParseCondition(&sliceTokenSource{tokens})
+		// should be no panics
+	})
+}
+
+func FuzzParseKey(f *testing.F) {
+	f.Fuzz(func(t *testing.T, kind, name string, id int64, length int, uint32seed uint32) {
+		parts := []gqlparser.Token{
+			&gqlparser.KeywordToken{Name: "KEY"},
+			&gqlparser.KeywordToken{Name: "PROJECT"},
+			&gqlparser.KeywordToken{Name: "NAMESPACE"},
+			&gqlparser.WhitespaceToken{Content: " "},
+			&gqlparser.WhitespaceToken{Content: "\n"},
+			&gqlparser.WhitespaceToken{Content: "\t"},
+			&gqlparser.OperatorToken{Type: "("},
+			&gqlparser.OperatorToken{Type: ")"},
+			&gqlparser.OperatorToken{Type: ","},
+			&gqlparser.SymbolToken{Content: "SymbolKind"},
+			&gqlparser.StringToken{Quote: '`', Content: kind},
+			&gqlparser.StringToken{Quote: '"', Content: name},
+			&gqlparser.NumericToken{Int64: id},
+		}
+
+		var seed [32]byte
+		binary.BigEndian.PutUint32(seed[:], uint32seed)
+
+		r := rand.New(rand.NewChaCha8(seed))
+		var tokens []gqlparser.Token
+		for len(tokens) < length {
+			tokens = append(tokens, parts[r.IntN(len(parts))])
+		}
+		normalizeTokens(tokens)
+
+		_, _ = gqlparser.ParseKey(&sliceTokenSource{tokens})
+		// should be no panics
+	})
 }
