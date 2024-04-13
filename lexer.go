@@ -107,7 +107,7 @@ func (l *Lexer) Read() (Token, error) {
 		l.position += w
 		return t, nil
 
-	case '(', ',', '.', ')', '=', '-', '+':
+	case '(', ',', ')', '=', '-', '+':
 		t := &OperatorToken{Type: l.source[l.position : l.position+1], Position: l.position}
 		l.position++
 		return t, nil
@@ -226,6 +226,10 @@ func takeOperatorToken(s string, pos int) (*OperatorToken, int, error) {
 }
 
 func takeBindingToken(s string, pos int) (*BindingToken, int, error) {
+	if len(s) == 1 {
+		return nil, 0, fmt.Errorf("unexpected token: %c", s[0])
+	}
+
 	width := 1
 	numeric := false
 	switch s[width] {
@@ -299,15 +303,40 @@ func takeSymbolToken(s string, pos int) (*SymbolToken, int, error) {
 	if width == 0 {
 		return nil, 0, fmt.Errorf("unexpected token: %c", s[width])
 	}
+	for s[width] == '.' {
+		width++
+		if width == len(s) {
+			return &SymbolToken{Content: s[0:width], Position: pos}, width, nil
+		}
+		base := width
+		for isSymbolFollowingByte(s[width]) {
+			width++
+			if width == len(s) {
+				return &SymbolToken{Content: s[0:width], Position: pos}, width, nil
+			}
+		}
+		if width == base {
+			return nil, 0, fmt.Errorf("unexpected token: %c", s[width])
+		}
+	}
 
 	return &SymbolToken{Content: s[0:width], Position: pos}, width, nil
 }
 
+// isSymbolByte matches the regular expression `[a-zA-Z0-9_$]`.
 func isSymbolByte(b byte) bool {
 	if b > unicode.MaxASCII {
 		return false
 	}
-	return unicode.IsLetter(rune(b)) || unicode.IsDigit(rune(b))
+	return unicode.IsLetter(rune(b)) || unicode.IsDigit(rune(b)) || b == '_' || b == '$'
+}
+
+// isSymbolFollowingByte matches the regular expression `[0-9_$]`.
+func isSymbolFollowingByte(b byte) bool {
+	if b > unicode.MaxASCII {
+		return false
+	}
+	return unicode.IsDigit(rune(b)) || b == '_' || b == '$'
 }
 
 var unquoteReplacer = strings.NewReplacer(

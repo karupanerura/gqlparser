@@ -17,14 +17,14 @@ func ParseQueryOrAggregationQuery(ts TokenSource) (*Query, *AggregationQuery, er
 	acceptor := tokenAcceptors{
 		skipWhitespaceToken,
 		&conditionalTokenAcceptor{
-			ifAccept: acceptKeyword("AGGREGATE"),
+			ifAccept: advanceAcceptor(acceptKeyword("AGGREGATE")),
 			andThen:  acceptAggregationQuery(&query),
 			orElse: &conditionalTokenAcceptor{
 				ifAccept: acceptKeyword("SELECT"),
 				andThen: tokenAcceptors{
 					acceptWhitespaceToken,
 					&conditionalTokenAcceptor{
-						ifAccept: acceptKeyword("COUNT", "COUNT_UP_TO", "SUM", "AVG"),
+						ifAccept: advanceAcceptor(acceptKeyword("COUNT", "COUNT_UP_TO", "SUM", "AVG")),
 						andThen:  acceptSelectAggregationQueryBody(&query),
 						orElse:   acceptSelectQueryBody(&query.Query),
 					},
@@ -146,9 +146,11 @@ func acceptAggregations(aggregations *[]Aggregation) tokenAcceptor {
 			acceptWildcardToken,
 			skipWhitespaceToken,
 			acceptOperator(")"),
-			skipWhitespaceToken,
 			&conditionalTokenAcceptor{
-				ifAccept: acceptKeyword("AS"),
+				ifAccept: tokenAcceptors{
+					acceptWhitespaceToken,
+					acceptKeyword("AS"),
+				},
 				andThen: tokenAcceptors{
 					acceptWhitespaceToken,
 					acceptEitherToken(
@@ -164,12 +166,14 @@ func acceptAggregations(aggregations *[]Aggregation) tokenAcceptor {
 							return nil
 						},
 					),
-					skipWhitespaceToken,
 				},
 				orElse: nopAcceptor,
 			},
 			&conditionalTokenAcceptor{
-				ifAccept: acceptOperator(","),
+				ifAccept: tokenAcceptors{
+					skipWhitespaceToken,
+					acceptOperator(","),
+				},
 				andThen: tokenAcceptors{
 					skipWhitespaceToken,
 					deferAcceptor(func() tokenAcceptor {
@@ -198,9 +202,11 @@ func acceptAggregations(aggregations *[]Aggregation) tokenAcceptor {
 				}),
 				skipWhitespaceToken,
 				acceptOperator(")"),
-				skipWhitespaceToken,
 				&conditionalTokenAcceptor{
-					ifAccept: acceptKeyword("AS"),
+					ifAccept: tokenAcceptors{
+						acceptWhitespaceToken,
+						acceptKeyword("AS"),
+					},
 					andThen: tokenAcceptors{
 						acceptWhitespaceToken,
 						acceptEitherToken(
@@ -216,12 +222,14 @@ func acceptAggregations(aggregations *[]Aggregation) tokenAcceptor {
 								return nil
 							},
 						),
-						skipWhitespaceToken,
 					},
 					orElse: nopAcceptor,
 				},
 				&conditionalTokenAcceptor{
-					ifAccept: acceptOperator(","),
+					ifAccept: tokenAcceptors{
+						skipWhitespaceToken,
+						acceptOperator(","),
+					},
 					andThen: tokenAcceptors{
 						skipWhitespaceToken,
 						deferAcceptor(func() tokenAcceptor {
@@ -256,9 +264,11 @@ func acceptAggregations(aggregations *[]Aggregation) tokenAcceptor {
 					),
 					skipWhitespaceToken,
 					acceptOperator(")"),
-					skipWhitespaceToken,
 					&conditionalTokenAcceptor{
-						ifAccept: acceptKeyword("AS"),
+						ifAccept: tokenAcceptors{
+							acceptWhitespaceToken,
+							acceptKeyword("AS"),
+						},
 						andThen: tokenAcceptors{
 							acceptWhitespaceToken,
 							acceptEitherToken(
@@ -274,12 +284,14 @@ func acceptAggregations(aggregations *[]Aggregation) tokenAcceptor {
 									return nil
 								},
 							),
-							skipWhitespaceToken,
 						},
 						orElse: nopAcceptor,
 					},
 					&conditionalTokenAcceptor{
-						ifAccept: acceptOperator(","),
+						ifAccept: tokenAcceptors{
+							skipWhitespaceToken,
+							acceptOperator(","),
+						},
 						andThen: tokenAcceptors{
 							skipWhitespaceToken,
 							deferAcceptor(func() tokenAcceptor {
@@ -314,9 +326,11 @@ func acceptAggregations(aggregations *[]Aggregation) tokenAcceptor {
 						),
 						skipWhitespaceToken,
 						acceptOperator(")"),
-						skipWhitespaceToken,
 						&conditionalTokenAcceptor{
-							ifAccept: acceptKeyword("AS"),
+							ifAccept: tokenAcceptors{
+								acceptWhitespaceToken,
+								acceptKeyword("AS"),
+							},
 							andThen: tokenAcceptors{
 								acceptWhitespaceToken,
 								acceptEitherToken(
@@ -332,12 +346,14 @@ func acceptAggregations(aggregations *[]Aggregation) tokenAcceptor {
 										return nil
 									},
 								),
-								skipWhitespaceToken,
 							},
 							orElse: nopAcceptor,
 						},
 						&conditionalTokenAcceptor{
-							ifAccept: acceptOperator(","),
+							ifAccept: tokenAcceptors{
+								skipWhitespaceToken,
+								acceptOperator(","),
+							},
 							andThen: tokenAcceptors{
 								skipWhitespaceToken,
 								deferAcceptor(func() tokenAcceptor {

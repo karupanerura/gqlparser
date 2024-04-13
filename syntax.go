@@ -120,7 +120,7 @@ func (*AndCompoundCondition) isCompoundCondition() {}
 func (*AndCompoundCondition) isCondition()         {}
 func (*AndCompoundCondition) isSyntax()            {}
 
-func (c *AndCompoundCondition) Bind(br BindingResolver) error {
+func (c *AndCompoundCondition) Bind(br *BindingResolver) error {
 	if err := c.Left.Bind(br); err != nil {
 		return err
 	}
@@ -128,6 +128,10 @@ func (c *AndCompoundCondition) Bind(br BindingResolver) error {
 		return err
 	}
 	return nil
+}
+
+func (c *AndCompoundCondition) Normalize() Condition {
+	return c
 }
 
 type OrCompoundCondition struct {
@@ -139,7 +143,7 @@ func (*OrCompoundCondition) isCompoundCondition() {}
 func (*OrCompoundCondition) isCondition()         {}
 func (*OrCompoundCondition) isSyntax()            {}
 
-func (c *OrCompoundCondition) Bind(br BindingResolver) error {
+func (c *OrCompoundCondition) Bind(br *BindingResolver) error {
 	if err := c.Left.Bind(br); err != nil {
 		return err
 	}
@@ -149,18 +153,31 @@ func (c *OrCompoundCondition) Bind(br BindingResolver) error {
 	return nil
 }
 
+func (c *OrCompoundCondition) Normalize() Condition {
+	return c
+}
+
 type Condition interface {
 	isCondition()
-	Bind(br BindingResolver) error
+	Bind(*BindingResolver) error
+	Normalize() Condition
 }
 
 type IsNullCondition struct {
 	Property string
 }
 
-func (*IsNullCondition) isCondition()                  {}
-func (*IsNullCondition) isSyntax()                     {}
-func (*IsNullCondition) Bind(br BindingResolver) error { return nil }
+func (*IsNullCondition) isCondition()                   {}
+func (*IsNullCondition) isSyntax()                      {}
+func (*IsNullCondition) Bind(br *BindingResolver) error { return nil }
+
+func (c *IsNullCondition) Normalize() Condition {
+	return &EitherComparatorCondition{
+		Comparator: EqualsEitherComparator,
+		Property:   c.Property,
+		Value:      nil,
+	}
+}
 
 type ForwardComparatorCondition struct {
 	Comparator ForwardComparator
@@ -171,7 +188,7 @@ type ForwardComparatorCondition struct {
 func (*ForwardComparatorCondition) isCondition() {}
 func (*ForwardComparatorCondition) isSyntax()    {}
 
-func (c *ForwardComparatorCondition) Bind(br BindingResolver) error {
+func (c *ForwardComparatorCondition) Bind(br *BindingResolver) error {
 	if bv, ok := c.Value.(BindingVariable); ok {
 		if v, err := br.Resolve(bv); err != nil {
 			return err
@@ -180,6 +197,19 @@ func (c *ForwardComparatorCondition) Bind(br BindingResolver) error {
 		}
 	}
 	return nil
+}
+
+func (c *ForwardComparatorCondition) Normalize() Condition {
+	switch c.Comparator {
+	case ContainsForwardComparator:
+		return &EitherComparatorCondition{
+			Comparator: EqualsEitherComparator,
+			Property:   c.Property,
+			Value:      c.Value,
+		}
+	default:
+		return c
+	}
 }
 
 type ForwardComparator string
@@ -211,7 +241,7 @@ type BackwardComparatorCondition struct {
 func (*BackwardComparatorCondition) isCondition() {}
 func (*BackwardComparatorCondition) isSyntax()    {}
 
-func (c *BackwardComparatorCondition) Bind(br BindingResolver) error {
+func (c *BackwardComparatorCondition) Bind(br *BindingResolver) error {
 	if bv, ok := c.Value.(BindingVariable); ok {
 		if v, err := br.Resolve(bv); err != nil {
 			return err
@@ -220,6 +250,25 @@ func (c *BackwardComparatorCondition) Bind(br BindingResolver) error {
 		}
 	}
 	return nil
+}
+
+func (c *BackwardComparatorCondition) Normalize() Condition {
+	switch c.Comparator {
+	case InBackwardComparator:
+		return &EitherComparatorCondition{
+			Comparator: EqualsEitherComparator,
+			Property:   c.Property,
+			Value:      c.Value,
+		}
+	case HasDescendantBackwardComparator:
+		return &ForwardComparatorCondition{
+			Comparator: HasAncestorForwardComparator,
+			Property:   c.Property,
+			Value:      c.Value,
+		}
+	default:
+		return c
+	}
 }
 
 type BackwardComparator string
@@ -247,7 +296,7 @@ type EitherComparatorCondition struct {
 func (*EitherComparatorCondition) isCondition() {}
 func (*EitherComparatorCondition) isSyntax()    {}
 
-func (c *EitherComparatorCondition) Bind(br BindingResolver) error {
+func (c *EitherComparatorCondition) Bind(br *BindingResolver) error {
 	if bv, ok := c.Value.(BindingVariable); ok {
 		if v, err := br.Resolve(bv); err != nil {
 			return err
@@ -258,24 +307,28 @@ func (c *EitherComparatorCondition) Bind(br BindingResolver) error {
 	return nil
 }
 
+func (c *EitherComparatorCondition) Normalize() Condition {
+	return c
+}
+
 type EitherComparator string
 
 const (
-	EqualsEitherComparator              EitherComparator = "="
-	NotEqualsEitherComparator           EitherComparator = "!="
-	GreaterThanEitherComparator         EitherComparator = "<"
-	GreaterOrEqualsThanEitherComparator EitherComparator = "<="
-	LesserThanEitherComparator          EitherComparator = ">"
-	LesserOrEqualsEitherComparator      EitherComparator = ">="
+	EqualsEitherComparator                  EitherComparator = "="
+	NotEqualsEitherComparator               EitherComparator = "!="
+	GreaterThanEitherComparator             EitherComparator = ">"
+	GreaterThanOrEqualsThanEitherComparator EitherComparator = ">="
+	LesserThanEitherComparator              EitherComparator = "<"
+	LesserThanOrEqualsEitherComparator      EitherComparator = "<="
 )
 
 var eitherComparatorTrie = runetrie.NewTrie(
 	EqualsEitherComparator,
 	NotEqualsEitherComparator,
 	GreaterThanEitherComparator,
-	GreaterOrEqualsThanEitherComparator,
+	GreaterThanOrEqualsThanEitherComparator,
 	LesserThanEitherComparator,
-	LesserOrEqualsEitherComparator,
+	LesserThanOrEqualsEitherComparator,
 )
 
 func (c EitherComparator) Valid() bool {

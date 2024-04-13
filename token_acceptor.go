@@ -37,6 +37,17 @@ func notAcceptor(acceptor tokenAcceptor) tokenAcceptor {
 	})
 }
 
+func advanceAcceptor(acceptor tokenAcceptor) tokenAcceptor {
+	return tokenAcceptorFn(func(tr tokenReader) error {
+		rtr := asResettableTokenReader(tr)
+		defer rtr.Reset()
+		if err := acceptor.accept(rtr); err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
 func deferAcceptor(getAcceptor func() tokenAcceptor) tokenAcceptor {
 	return tokenAcceptorFn(func(tr tokenReader) error {
 		acceptor := getAcceptor()
@@ -162,44 +173,6 @@ func acceptTokenFromAny3[L Token, C Token, R Token](lf func(L) error, cf func(C)
 			default:
 				return fmt.Errorf("%w: %s at %d", ErrUnexpectedToken, token.GetContent(), token.GetPosition())
 			}
-		}
-	})
-}
-
-func acceptTokenFromAny4[L Token, CL Token, CR Token, R Token](lf func(L) (tokenAcceptor, error), clf func(CL) (tokenAcceptor, error), crf func(CR) (tokenAcceptor, error), rf func(R) (tokenAcceptor, error)) tokenAcceptor {
-	return tokenAcceptorFn(func(tr tokenReader) error {
-		if token, err := tr.Read(); errors.Is(err, ErrEndOfToken) {
-			return ErrNoTokens
-		} else if err != nil {
-			return err
-		} else {
-			var (
-				acceptor tokenAcceptor
-				err      error
-			)
-			switch t := token.(type) {
-			case L:
-				acceptor, err = lf(t)
-			case CL:
-				acceptor, err = clf(t)
-			case CR:
-				acceptor, err = crf(t)
-			case R:
-				acceptor, err = rf(t)
-			default:
-				return fmt.Errorf("%w: %s at %d", ErrUnexpectedToken, token.GetContent(), token.GetPosition())
-			}
-
-			if err != nil {
-				return err
-			}
-			if acceptor != nil {
-				if err := acceptor.accept(tr); err != nil {
-					return err
-				}
-				return nil
-			}
-			return nil
 		}
 	})
 }

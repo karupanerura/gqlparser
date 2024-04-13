@@ -30,8 +30,8 @@ func (r *BindingResolver) getIndexed(index int64) (any, error) {
 	if r.Indexed == nil {
 		return nil, fmt.Errorf("%w: index=%d", ErrBindValue, index)
 	}
-	if index < int64(len(r.Indexed)) {
-		return r.Indexed[index], nil
+	if index <= int64(len(r.Indexed)) {
+		return r.Indexed[index-1], nil
 	}
 	return nil, fmt.Errorf("%w: index=%d", ErrBindValue, index)
 }
