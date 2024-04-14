@@ -76,6 +76,30 @@ func TestLexer(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name:   "Integer",
+			source: "123",
+			want: []gqlparser.Token{
+				&gqlparser.NumericToken{Int64: 123, RawContent: "123", Position: 0},
+			},
+			wantErr: false,
+		},
+		{
+			name:   "IntegerWithPlusSign",
+			source: "+123",
+			want: []gqlparser.Token{
+				&gqlparser.NumericToken{Int64: 123, RawContent: "+123", Position: 0},
+			},
+			wantErr: false,
+		},
+		{
+			name:   "IntegerWithMinusSign",
+			source: "-123",
+			want: []gqlparser.Token{
+				&gqlparser.NumericToken{Int64: -123, RawContent: "-123", Position: 0},
+			},
+			wantErr: false,
+		},
+		{
 			name:   "EqualsCondition",
 			source: "prop = 1",
 			want: []gqlparser.Token{

@@ -6,12 +6,6 @@ import (
 	"time"
 )
 
-var prefixOperatorBindingPowerSet = map[string]struct{}{
-	"-": {},
-	"+": {},
-	"(": {},
-}
-
 var infixCompoundOperatorBindingPowerMap = map[string]uint8{
 	"AND": 2,
 	"OR":  1,
@@ -83,7 +77,7 @@ func constructAST(tr tokenReader, minBP uint8) (conditionAST, error) {
 	case *BindingToken:
 		left = &conditionValue{bind: v}
 	case *OperatorToken:
-		left, err = parsePrefixOP(tr, v)
+		left, err = parseGroupedCondition(tr, v)
 		if err != nil {
 			return nil, err
 		}
@@ -266,56 +260,40 @@ func constructAST(tr tokenReader, minBP uint8) (conditionAST, error) {
 	}
 }
 
-func parsePrefixOP(tr tokenReader, op *OperatorToken) (conditionAST, error) {
-	if _, isPrefixOP := prefixOperatorBindingPowerSet[op.Type]; isPrefixOP {
-		if op.Type == "(" {
-			if err := skipWhitespaceToken.accept(tr); err != nil {
-				return nil, err
-			}
-
-			children, err := constructAST(tr, 0)
-			if errors.Is(err, ErrEndOfToken) {
-				return nil, fmt.Errorf("%w: %s at %d", ErrUnexpectedToken, op.GetContent(), op.GetPosition())
-			} else if err != nil {
-				return nil, err
-			}
-
-			if err := skipWhitespaceToken.accept(tr); err != nil {
-				return nil, err
-			}
-
-			nextToken, err := tr.Read()
-			if errors.Is(err, ErrEndOfToken) {
-				return nil, fmt.Errorf("%w: %s at %d", ErrUnexpectedToken, op.GetContent(), op.GetPosition())
-			} else if err != nil {
-				return nil, err
-			}
-
-			if t, isOp := nextToken.(*OperatorToken); !isOp {
-				return nil, fmt.Errorf("%w: %s at %d", ErrUnexpectedToken, op.GetContent(), op.GetPosition())
-			} else if t.Type != ")" {
-				return nil, fmt.Errorf("%w: %s at %d", ErrUnexpectedToken, op.GetContent(), op.GetPosition())
-			}
-
-			return children, nil
-		} else {
-			nextToken, err := tr.Read()
-			if errors.Is(err, ErrEndOfToken) {
-				return nil, fmt.Errorf("%w: %s at %d", ErrUnexpectedToken, op.GetContent(), op.GetPosition())
-			} else if err != nil {
-				return nil, err
-			}
-
-			numTok, ok := nextToken.(*NumericToken)
-			if !ok {
-				return nil, fmt.Errorf("%w: %s at %d", ErrUnexpectedToken, nextToken.GetContent(), nextToken.GetPosition())
-			}
-
-			return &prefixCondition{op: op, right: &conditionValue{n: numTok}}, nil
-		}
-	} else {
+func parseGroupedCondition(tr tokenReader, op *OperatorToken) (conditionAST, error) {
+	if op.Type != "(" {
 		return nil, fmt.Errorf("%w: %s at %d", ErrUnexpectedToken, op.GetContent(), op.GetPosition())
 	}
+
+	if err := skipWhitespaceToken.accept(tr); err != nil {
+		return nil, err
+	}
+
+	children, err := constructAST(tr, 0)
+	if errors.Is(err, ErrEndOfToken) {
+		return nil, fmt.Errorf("%w: %s at %d", ErrUnexpectedToken, op.GetContent(), op.GetPosition())
+	} else if err != nil {
+		return nil, err
+	}
+
+	if err := skipWhitespaceToken.accept(tr); err != nil {
+		return nil, err
+	}
+
+	nextToken, err := tr.Read()
+	if errors.Is(err, ErrEndOfToken) {
+		return nil, fmt.Errorf("%w: %s at %d", ErrUnexpectedToken, op.GetContent(), op.GetPosition())
+	} else if err != nil {
+		return nil, err
+	}
+
+	if t, isOp := nextToken.(*OperatorToken); !isOp {
+		return nil, fmt.Errorf("%w: %s at %d", ErrUnexpectedToken, op.GetContent(), op.GetPosition())
+	} else if t.Type != ")" {
+		return nil, fmt.Errorf("%w: %s at %d", ErrUnexpectedToken, op.GetContent(), op.GetPosition())
+	}
+
+	return children, nil
 }
 
 func acceptConditionValue(result *conditionValuer) tokenAcceptor {
@@ -328,21 +306,6 @@ func acceptConditionValue(result *conditionValuer) tokenAcceptor {
 		}
 
 		switch v := tok.(type) {
-		case *OperatorToken:
-			if v.Type != "+" && v.Type != "-" {
-				return fmt.Errorf("%w: %s at %d", ErrUnexpectedToken, tok.GetContent(), tok.GetPosition())
-			}
-			if err := acceptConditionValue(result).accept(tr); err != nil {
-				// NOTE: ignore following errors because the prefix operator is a first unexpected token if error is occurred
-				return fmt.Errorf("%w: %s at %d", ErrUnexpectedToken, tok.GetContent(), tok.GetPosition())
-			}
-			if cv, ok := (*result).(*conditionValue); ok && cv.isNumericValue() {
-				pc := &prefixCondition{op: v, right: cv}
-				*result = pc
-			} else {
-				return fmt.Errorf("%w: %s at %d", ErrUnexpectedToken, tok.GetContent(), tok.GetPosition())
-			}
-			return nil
 		case *BooleanToken:
 			*result = &conditionValue{b: v}
 			return nil

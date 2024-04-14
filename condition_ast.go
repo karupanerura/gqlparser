@@ -15,43 +15,6 @@ type conditionValuer interface {
 	toUnexpectedTokenError() error
 }
 
-type prefixCondition struct {
-	op    *OperatorToken
-	right *conditionValue
-}
-
-func (c *prefixCondition) value() any {
-	switch c.op.Type {
-	case "+":
-		if c.right.n == nil {
-			panic("invalid prefix condition")
-		}
-		return c.right.value()
-	case "-":
-		if c.right.n == nil {
-			panic("invalid prefix condition")
-		}
-		switch v := c.right.value().(type) {
-		case int64:
-			return -v
-		case float64:
-			return -v
-		default:
-			panic(fmt.Sprintf("unknown right value type: %T", c.right.value()))
-		}
-	default:
-		panic("unknown operator: " + c.op.Type)
-	}
-}
-
-func (c *prefixCondition) toCondition() (Condition, error) {
-	return nil, c.toUnexpectedTokenError()
-}
-
-func (c *prefixCondition) toUnexpectedTokenError() error {
-	return fmt.Errorf("%w: %s at %d", ErrUnexpectedToken, c.op.GetContent(), c.op.GetPosition())
-}
-
 type forwardComparatorCondition struct {
 	left   *conditionField
 	op     *OperatorToken

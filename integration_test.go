@@ -109,6 +109,18 @@ var (
 			wantErr: false,
 		},
 		{
+			name:   "SimpleQueryWithOffsets",
+			source: "SELECT * FROM `Kind` OFFSET @1 + +2",
+			want: &gqlparser.Query{
+				Kind: "Kind",
+				Offset: &gqlparser.Offset{
+					Position: 2,
+					Cursor:   &gqlparser.IndexedBinding{Index: 1},
+				},
+			},
+			wantErr: false,
+		},
+		{
 			name:   "SimpleQueryWithLimitAndOffset",
 			source: "SELECT * FROM `Kind` LIMIT 10 OFFSET 10",
 			want: &gqlparser.Query{

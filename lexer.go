@@ -107,7 +107,7 @@ func (l *Lexer) Read() (Token, error) {
 		l.position += w
 		return t, nil
 
-	case '(', ',', ')', '=', '-', '+':
+	case '(', ',', ')', '=':
 		t := &OperatorToken{Type: l.source[l.position : l.position+1], Position: l.position}
 		l.position++
 		return t, nil
@@ -125,7 +125,7 @@ func (l *Lexer) Read() (Token, error) {
 		l.position++
 		return t, nil
 
-	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+	case '-', '+', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
 		t, w, err := takeNumericToken(l.source[l.position:], l.position)
 		if err != nil {
 			return nil, err
@@ -263,10 +263,10 @@ func takeBindingToken(s string, pos int) (*BindingToken, int, error) {
 	}
 }
 
-func takeNumericToken(s string, pos int) (*NumericToken, int, error) {
+func takeNumericToken(s string, pos int) (Token, int, error) {
 	width := 0
 	float := false
-	for '0' <= s[width] && s[width] <= '9' || s[width] == '.' {
+	for '0' <= s[width] && s[width] <= '9' || s[width] == '.' || s[width] == '-' || s[width] == '+' {
 		if s[width] == '.' {
 			float = true
 		}
@@ -277,18 +277,23 @@ func takeNumericToken(s string, pos int) (*NumericToken, int, error) {
 		}
 	}
 
+	// it's a special case for a single '+' character
+	if width == 1 && s[0] == '+' {
+		return &OperatorToken{Type: "+", RawContent: "+", Position: pos}, 1, nil
+	}
+
 	if float {
-		n, err := strconv.ParseFloat(s[0:width], 64)
+		n, err := strconv.ParseFloat(s[:width], 64)
 		if err != nil {
-			return nil, 0, fmt.Errorf("unexpected token: %s (%w)", s[0:width], err)
+			return nil, 0, fmt.Errorf("unexpected token: %s (%w)", s[:width], err)
 		}
-		return &NumericToken{Float64: n, Floating: true, RawContent: s[0:width], Position: pos}, width, nil
+		return &NumericToken{Float64: n, Floating: true, RawContent: s[:width], Position: pos}, width, nil
 	} else {
-		n, err := strconv.ParseInt(s[0:width], 10, 64)
+		n, err := strconv.ParseInt(s[:width], 10, 64)
 		if err != nil {
-			return nil, 0, fmt.Errorf("unexpected token: %s (%w)", s[0:width], err)
+			return nil, 0, fmt.Errorf("unexpected token: %s (%w)", s[:width], err)
 		}
-		return &NumericToken{Int64: n, Floating: false, RawContent: s[0:width], Position: pos}, width, nil
+		return &NumericToken{Int64: n, Floating: false, RawContent: s[:width], Position: pos}, width, nil
 	}
 }
 
@@ -297,7 +302,7 @@ func takeSymbolToken(s string, pos int) (*SymbolToken, int, error) {
 	for isSymbolByte(s[width]) {
 		width++
 		if width == len(s) {
-			return &SymbolToken{Content: s[0:width], Position: pos}, width, nil
+			return &SymbolToken{Content: s[:width], Position: pos}, width, nil
 		}
 	}
 	if width == 0 {
@@ -306,13 +311,13 @@ func takeSymbolToken(s string, pos int) (*SymbolToken, int, error) {
 	for s[width] == '.' {
 		width++
 		if width == len(s) {
-			return &SymbolToken{Content: s[0:width], Position: pos}, width, nil
+			return &SymbolToken{Content: s[:width], Position: pos}, width, nil
 		}
 		base := width
 		for isSymbolFollowingByte(s[width]) {
 			width++
 			if width == len(s) {
-				return &SymbolToken{Content: s[0:width], Position: pos}, width, nil
+				return &SymbolToken{Content: s[:width], Position: pos}, width, nil
 			}
 		}
 		if width == base {
@@ -320,7 +325,7 @@ func takeSymbolToken(s string, pos int) (*SymbolToken, int, error) {
 		}
 	}
 
-	return &SymbolToken{Content: s[0:width], Position: pos}, width, nil
+	return &SymbolToken{Content: s[:width], Position: pos}, width, nil
 }
 
 // isSymbolByte matches the regular expression `[a-zA-Z0-9_$]`.
