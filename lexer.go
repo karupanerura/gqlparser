@@ -126,10 +126,7 @@ func (l *Lexer) Read() (Token, error) {
 		return t, nil
 
 	case '<', '>', '!':
-		t, w, err := takeOperatorToken(l.source[l.position:], l.position)
-		if err != nil {
-			return nil, err
-		}
+		t, w := takeOperatorToken(l.source[l.position:], l.position)
 		l.position += w
 		return t, nil
 
@@ -223,11 +220,11 @@ func takeQuotedStringToken(s string, pos int) (*StringToken, int, error) {
 	}, begins + ends, nil
 }
 
-func takeOperatorToken(s string, pos int) (*OperatorToken, int, error) {
+func takeOperatorToken(s string, pos int) (*OperatorToken, int) {
 	if len(s) == 1 || s[1] != '=' {
-		return &OperatorToken{Type: s[0:1], Position: pos}, 1, nil
+		return &OperatorToken{Type: s[0:1], Position: pos}, 1
 	}
-	return &OperatorToken{Type: s[0:2], Position: pos}, 2, nil
+	return &OperatorToken{Type: s[0:2], Position: pos}, 2
 }
 
 func takeBindingToken(s string, pos int) (*BindingToken, int, error) {
