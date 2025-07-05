@@ -4,77 +4,134 @@ import (
 	"github.com/karupanerura/runetrie"
 )
 
+// Kind represents the kind of a datastore entity in the GQL syntax.
 type Kind string
 
+// ProjectID represents the Google Cloud project ID in the GQL syntax.
 type ProjectID string
 
+// Property represents a property name of a datastore entity in the GQL syntax.
 type Property string
 
+// Cursor represents a datastore pagination cursor in the GQL syntax.
 type Cursor string
 
+// Syntax is an interface for a GQL syntax AST entity.
 type Syntax interface {
 	isSyntax()
 }
 
+// Key represents a datastore key in the syntax.
 type Key struct {
+	// ProjectID is the Google Cloud project ID.
 	ProjectID ProjectID
+
+	// Namespace is the namespace of the datastore.
+	// It can be empty if the namespace is not specified.
 	Namespace string
-	Path      []*KeyPath
+
+	// Path is a slice of KeyPath elements that represent the path to the entity.
+	Path []*KeyPath
 }
 
 func (*Key) isSyntax() {}
 
+// KeyPath represents a path element in a datastore key.
 type KeyPath struct {
+	// Kind is the kind of the entity.
 	Kind Kind
-	ID   int64
+
+	// ID is the numeric ID of the entity.
+	ID int64
+
+	// Name is the string name of the entity.
 	Name string
 }
 
+// Query represents a GQL query syntax.
 type Query struct {
+	// Properties is a slice of properties to be selected in the projection query.
 	Properties []Property
-	Distinct   bool
+
+	// Distinct is a flag indicating whether to return distinct results.
+	Distinct bool
+
+	// DistinctOn is a slice of properties to be used for distinct results.
 	DistinctOn []Property
-	Kind       Kind
-	Where      Condition
-	OrderBy    []OrderBy
-	Limit      *Limit
-	Offset     *Offset
+
+	// Kind is the kind of the datastore entity to be queried.
+	Kind Kind
+
+	// Where is the condition to filter the results.
+	Where Condition
+
+	// OrderBy is a slice of order by clauses to sort the results.
+	// Each OrderBy clause can specify ascending or descending order.
+	OrderBy []OrderBy
+
+	// Limit is the limit on the number of results to be returned.
+	Limit *Limit
+
+	// Offset is the number of results to skip before starting to collect the result set.
+	Offset *Offset
 }
 
 func (*Query) isSyntax() {}
 
+// OrderBy represents an order by clause in the query.
 type OrderBy struct {
+	// Descending indicates whether the order is descending.
+	// If true, the order is descending. If false, the order is ascending.
 	Descending bool
-	Property   Property
+
+	// Property is the property to order by.
+	Property Property
 }
 
 func (*OrderBy) isSyntax() {}
 
+// Limit represents a limit clause in the query.
 type Limit struct {
+	// Position is the maximum number of results to return.
+	// It is a positive integer.
 	Position int64
-	Cursor   BindingVariable
+
+	// Cursor is a cursor to start the results from.
+	Cursor BindingVariable
 }
 
 func (*Limit) isSyntax() {}
 
+// Offset represents an offset clause in the query.
 type Offset struct {
+	// Position is the number of results to skip before starting to collect the result set.
+	// It is a positive integer.
 	Position int64
-	Cursor   BindingVariable
+
+	// Cursor is a cursor to start the results from.
+	Cursor BindingVariable
 }
 
 func (*Offset) isSyntax() {}
 
+// AggregationQuery represents a GQL aggregation query syntax.
+// It extends the base Query syntax with aggregation capabilities.
 type AggregationQuery struct {
+	// Aggregations is a slice of aggregation clauses to be applied to the query.
 	Aggregations []Aggregation
+
+	// Query is the base query to be aggregated.
 	Query
 }
 
 func (*AggregationQuery) isSyntax() {}
 
+// Aggregation is an interface for different types of aggregation specifications in the GQL syntax.
 type Aggregation interface {
 	isAggregation()
 }
 
+// CountAggregation represents a count aggregation in the GQL syntax.
 type CountAggregation struct {
 	Alias string
 }
@@ -82,6 +139,7 @@ type CountAggregation struct {
 func (*CountAggregation) isAggregation() {}
 func (*CountAggregation) isSyntax()      {}
 
+// CountUpToAggregation represents a count up to a specified limit in the GQL syntax.
 type CountUpToAggregation struct {
 	Limit int64
 	Alias string
@@ -90,27 +148,31 @@ type CountUpToAggregation struct {
 func (*CountUpToAggregation) isAggregation() {}
 func (*CountUpToAggregation) isSyntax()      {}
 
+// SumAggregation represents a sum aggregation in the GQL syntax.
 type SumAggregation struct {
-	Property string
+	Property Property
 	Alias    string
 }
 
 func (*SumAggregation) isAggregation() {}
 func (*SumAggregation) isSyntax()      {}
 
+// AvgAggregation represents an average aggregation in the GQL syntax.
 type AvgAggregation struct {
-	Property string
+	Property Property
 	Alias    string
 }
 
 func (*AvgAggregation) isAggregation() {}
 func (*AvgAggregation) isSyntax()      {}
 
+// CompoundCondition is an interface for compound conditions in the GQL syntax.
 type CompoundCondition interface {
 	Condition
 	isCompoundCondition()
 }
 
+// AndCompoundCondition represents a compound condition that combines two conditions with an AND operator.
 type AndCompoundCondition struct {
 	Left  Condition
 	Right Condition
@@ -137,6 +199,7 @@ func (c *AndCompoundCondition) Normalize() Condition {
 	}
 }
 
+// OrCompoundCondition represents a compound condition that combines two conditions with an OR operator.
 type OrCompoundCondition struct {
 	Left  Condition
 	Right Condition
@@ -163,12 +226,14 @@ func (c *OrCompoundCondition) Normalize() Condition {
 	}
 }
 
+// Condition is an interface for WHERE conditions in the GQL syntax.
 type Condition interface {
 	isCondition()
 	Bind(*BindingResolver) error
 	Normalize() Condition
 }
 
+// IsNullCondition represents a condition that checks if a property is null.
 type IsNullCondition struct {
 	Property string
 }
@@ -185,10 +250,16 @@ func (c *IsNullCondition) Normalize() Condition {
 	}
 }
 
+// ForwardComparatorCondition represents a condition that uses a forward comparator.
 type ForwardComparatorCondition struct {
+	// Comparator is the forward comparator to be used in the condition.
 	Comparator ForwardComparator
-	Property   string
-	Value      any
+
+	// Property is the property to be compared.
+	Property string
+
+	// Value is the value to be compared against.
+	Value any
 }
 
 func (*ForwardComparatorCondition) isCondition() {}
@@ -218,6 +289,8 @@ func (c *ForwardComparatorCondition) Normalize() Condition {
 	}
 }
 
+// ForwardComparator is an enum-like string type that represents forward comparison operators in the GQL syntax.
+// These operators are used with properties on the left side of conditions.
 type ForwardComparator string
 
 const (
@@ -238,10 +311,16 @@ func (c ForwardComparator) Valid() bool {
 	return forwardComparatorTrie.MatchAny(c)
 }
 
+// BackwardComparatorCondition represents a condition that uses a backward comparator.
 type BackwardComparatorCondition struct {
+	// Comparator is the backward comparator to be used in the condition.
 	Comparator BackwardComparator
-	Property   string
-	Value      any
+
+	// Property is the property to be compared.
+	Property string
+
+	// Value is the value to be compared against.
+	Value any
 }
 
 func (*BackwardComparatorCondition) isCondition() {}
@@ -277,6 +356,8 @@ func (c *BackwardComparatorCondition) Normalize() Condition {
 	}
 }
 
+// BackwardComparator is an enum-like string type that represents backward comparison operators in the GQL syntax.
+// These operators are used with properties on the right side of conditions.
 type BackwardComparator string
 
 const (
@@ -293,10 +374,16 @@ func (c BackwardComparator) Valid() bool {
 	return backwardComparatorTrie.MatchAny(c)
 }
 
+// EitherComparatorCondition represents a condition that uses either a forward or backward comparator.
 type EitherComparatorCondition struct {
+	// Comparator is the either comparator to be used in the condition.
 	Comparator EitherComparator
-	Property   string
-	Value      any
+
+	// Property is the property to be compared.
+	Property string
+
+	// Value is the value to be compared against.
+	Value any
 }
 
 func (*EitherComparatorCondition) isCondition() {}
@@ -317,6 +404,8 @@ func (c *EitherComparatorCondition) Normalize() Condition {
 	return c
 }
 
+// EitherComparator is an enum-like string type that represents either forward or backward comparison operators in the GQL syntax.
+// These operators can be used with properties on either side of conditions.
 type EitherComparator string
 
 const (

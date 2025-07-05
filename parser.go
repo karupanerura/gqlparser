@@ -12,6 +12,12 @@ var (
 	ErrUnexpectedToken = errors.New("unexpected token")
 )
 
+// ParseQueryOrAggregationQuery parses either a Query or an AggregationQuery from the provided TokenSource.
+// It returns a Query, an AggregationQuery, or an error if there was a problem parsing the query.
+// If the query is an aggregation query, the Query field of the AggregationQuery will be populated with the
+// underlying query, and the Aggregations field will contain the aggregation functions.
+// If the query is a regular query, the AggregationQuery field will be nil.
+// If the query is neither, an error will be returned indicating the unexpected token.
 func ParseQueryOrAggregationQuery(ts TokenSource) (*Query, *AggregationQuery, error) {
 	var query AggregationQuery
 	acceptor := tokenAcceptors{
@@ -53,6 +59,8 @@ func ParseQueryOrAggregationQuery(ts TokenSource) (*Query, *AggregationQuery, er
 	return nil, &query, nil
 }
 
+// ParseAggregationQuery parses an aggregation query from the provided TokenSource.
+// It returns an AggregationQuery and an error if there was a problem parsing the query.
 func ParseAggregationQuery(ts TokenSource) (*AggregationQuery, error) {
 	var query AggregationQuery
 	acceptor := acceptAggregationQuery(&query)

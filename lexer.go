@@ -10,8 +10,14 @@ import (
 	"github.com/karupanerura/runetrie"
 )
 
+// ErrEndOfToken is returned when the lexer reaches the end of the source string.
+// It is used to indicate that there are no more tokens to read.
+// This error is not returned by the lexer itself, but can be used by clients
+// to check if they have reached the end of the token stream.
 var ErrEndOfToken = errors.New("end of token")
 
+// Lexer is a GQL lexer.
+// It implements the TokenSource interface.
 type Lexer struct {
 	source   string
 	position int
@@ -59,14 +65,20 @@ func init() {
 	_ = booleanTrie.Add("TRUE", "FALSE")
 }
 
+// NewLexer creates a new Lexer instance.
+// It takes a source string as input and initializes the lexer with it.
 func NewLexer(source string) *Lexer {
 	return &Lexer{source: source}
 }
 
+// Next returns true if there are more tokens to read.
 func (l *Lexer) Next() bool {
 	return len(l.buffer) != 0 || l.position != len(l.source)
 }
 
+// Read reads the next token from the source string.
+// It returns the token and an error if any occurs.
+// If there are no more tokens to read, it returns ErrEndOfToken.
 func (l *Lexer) Read() (Token, error) {
 	if len(l.buffer) != 0 {
 		token := l.buffer[len(l.buffer)-1]
@@ -165,24 +177,16 @@ func (l *Lexer) takeSymbolToken() (Token, error) {
 	return t, nil
 }
 
+// Unread un-reads the last read token.
+// This allows for backtracking in the token stream.
+// It should be called after Read() if you want to go back to the previous token.
+// It returns an error if there was a problem un-reading the token.
 func (l *Lexer) Unread(t Token) {
 	l.buffer = append(l.buffer, t)
 }
 
 func isWhitespace(r byte) bool {
 	return r == ' ' || r == '\t' || r == '\r' || r == '\n'
-}
-
-func ReadAllTokens(ts TokenSource) ([]Token, error) {
-	var tokens []Token
-	for ts.Next() {
-		tok, err := ts.Read()
-		if err != nil {
-			return nil, err
-		}
-		tokens = append(tokens, tok)
-	}
-	return tokens, nil
 }
 
 func takeQuotedStringToken(s string, pos int) (*StringToken, int, error) {
