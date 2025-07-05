@@ -285,7 +285,7 @@ func takeNumericToken(s string, pos int) (Token, int, error) {
 
 	// it's a special case for a single '+' character
 	if width == 1 && s[0] == '+' {
-		return &OperatorToken{Type: "+", RawContent: "+", Position: pos}, 1, nil
+		return &OperatorToken{Type: "+", Position: pos}, 1, nil
 	}
 
 	if float {

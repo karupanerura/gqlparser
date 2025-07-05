@@ -54,6 +54,7 @@ type OperatorToken struct {
 	Type string
 
 	// RawContent is the raw string representation of the token.
+	// This is an optional field. It is defined when different from the Type field.
 	RawContent string
 
 	// Position is the position of the token in the source string.
