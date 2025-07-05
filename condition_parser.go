@@ -18,6 +18,7 @@ var infixEitherOperatorBindingPowerMap = map[string]uint8{
 	"<=": 3,
 	">":  3,
 	">=": 3,
+	".":  10,
 }
 
 var infixEitherOperatorInvertMap = map[string]string{
@@ -52,7 +53,7 @@ var specialOpMap = map[string]map[string]string{
 	},
 }
 
-func constructAST(tr tokenReader, minBP uint8) (conditionAST, error) {
+func constructConditionAST(tr tokenReader, minBP uint8) (conditionAST, error) {
 	tok, err := tr.Read()
 	if errors.Is(err, ErrEndOfToken) {
 		return nil, ErrNoTokens
@@ -90,7 +91,7 @@ func constructAST(tr tokenReader, minBP uint8) (conditionAST, error) {
 			}
 			left = &conditionKey{keyKeyword: v, key: &key}
 		case "ARRAY":
-			var values []conditionValuer
+			var values []valueAST
 			if err := acceptArrayBody(&values).accept(tr); err != nil {
 				return nil, err
 			}
@@ -170,9 +171,9 @@ func constructAST(tr tokenReader, minBP uint8) (conditionAST, error) {
 		allowForwardOP := false
 		allowCompoundOP := false
 		switch left.(type) {
-		case conditionValuer:
+		case valueAST:
 			allowBackwardOP = true
-		case *conditionField:
+		case propertyAST:
 			allowForwardOP = true
 		default:
 			allowCompoundOP = true
@@ -199,8 +200,8 @@ func constructAST(tr tokenReader, minBP uint8) (conditionAST, error) {
 			return left, nil
 		}
 
-		right, err := constructAST(tr, bp+1)
-		if errors.Is(err, ErrEndOfToken) {
+		right, err := constructConditionAST(tr, bp+1)
+		if errors.Is(err, ErrNoTokens) {
 			// ok: ignore it
 		} else if err != nil {
 			return nil, err
@@ -210,41 +211,49 @@ func constructAST(tr tokenReader, minBP uint8) (conditionAST, error) {
 		}
 
 		if isEitherOP {
-			if cv, isValue := left.(conditionValuer); isValue {
-				fv, isField := right.(*conditionField)
+			if cv, isValue := left.(valueAST); isValue {
+				fv, isField := right.(propertyAST)
 				if !isField {
 					return nil, right.toUnexpectedTokenError()
 				}
 				left = &backwardComparatorCondition{left: cv, op: op, opType: typ, right: fv}
-			} else if fv, isField := left.(*conditionField); isField {
-				cv, isValue := right.(conditionValuer)
-				if !isValue {
-					return nil, right.toUnexpectedTokenError()
+			} else if fv, isField := left.(propertyAST); isField {
+				if op.Type == "." {
+					r, isField := right.(propertyAST)
+					if !isField {
+						return nil, right.toUnexpectedTokenError()
+					}
+					left = &conditionFieldAccess{left: fv, right: r}
+				} else {
+					cv, isValue := right.(valueAST)
+					if !isValue {
+						return nil, right.toUnexpectedTokenError()
+					}
+					left = &forwardComparatorCondition{left: fv, op: op, opType: typ, right: cv}
 				}
-				left = &forwardComparatorCondition{left: fv, op: op, opType: typ, right: cv}
 			} else {
 				return nil, left.toUnexpectedTokenError()
 			}
 		} else if allowCompoundOP {
 			left = &compoundComparatorCondition{left: left, op: op, right: right}
 		} else if allowForwardOP {
-			fv, isField := left.(*conditionField)
+			fv, isField := left.(propertyAST)
 			if !isField {
 				return nil, left.toUnexpectedTokenError()
 			}
 
-			cv, isValue := right.(conditionValuer)
+			cv, isValue := right.(valueAST)
 			if !isValue {
 				return nil, right.toUnexpectedTokenError()
 			}
 			left = &forwardComparatorCondition{left: fv, op: op, opType: typ, right: cv}
 		} else if allowBackwardOP {
-			cv, isValue := left.(conditionValuer)
+			cv, isValue := left.(valueAST)
 			if !isValue {
 				return nil, left.toUnexpectedTokenError()
 			}
 
-			fv, isField := right.(*conditionField)
+			fv, isField := right.(propertyAST)
 			if !isField {
 				return nil, right.toUnexpectedTokenError()
 			}
@@ -269,7 +278,7 @@ func parseGroupedCondition(tr tokenReader, op *OperatorToken) (conditionAST, err
 		return nil, err
 	}
 
-	children, err := constructAST(tr, 0)
+	children, err := constructConditionAST(tr, 0)
 	if errors.Is(err, ErrEndOfToken) {
 		return nil, fmt.Errorf("%w: %s at %d", ErrUnexpectedToken, op.GetContent(), op.GetPosition())
 	} else if err != nil {
@@ -296,7 +305,7 @@ func parseGroupedCondition(tr tokenReader, op *OperatorToken) (conditionAST, err
 	return children, nil
 }
 
-func acceptConditionValue(result *conditionValuer) tokenAcceptor {
+func acceptConditionValue(result *valueAST) tokenAcceptor {
 	return tokenAcceptorFn(func(tr tokenReader) error {
 		tok, err := tr.Read()
 		if errors.Is(err, ErrEndOfToken) {
@@ -332,7 +341,7 @@ func acceptConditionValue(result *conditionValuer) tokenAcceptor {
 				*result = &conditionKey{keyKeyword: v, key: &key}
 				return nil
 			case "ARRAY":
-				var values []conditionValuer
+				var values []valueAST
 				if err := acceptArrayBody(&values).accept(tr); err != nil {
 					return err
 				}

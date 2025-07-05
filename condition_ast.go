@@ -10,16 +10,16 @@ type conditionAST interface {
 	toUnexpectedTokenError() error
 }
 
-type conditionValuer interface {
+type valueAST interface {
 	value() any
 	toUnexpectedTokenError() error
 }
 
 type forwardComparatorCondition struct {
-	left   *conditionField
+	left   propertyAST
 	op     *OperatorToken
 	opType string
-	right  conditionValuer
+	right  valueAST
 }
 
 func (c *forwardComparatorCondition) toCondition() (Condition, error) {
@@ -29,20 +29,20 @@ func (c *forwardComparatorCondition) toCondition() (Condition, error) {
 		if !comparator.Valid() {
 			return nil, fmt.Errorf("%w: %s at %d", ErrUnexpectedToken, c.op.GetContent(), c.op.GetPosition())
 		}
-		return &EitherComparatorCondition{Comparator: comparator, Property: c.left.name(), Value: c.right.value()}, nil
+		return &EitherComparatorCondition{Comparator: comparator, Property: c.left.toProperty(), Value: c.right.value()}, nil
 	}
 	if c.opType == "IS" {
 		if c.right.value() != nil {
 			return nil, c.right.toUnexpectedTokenError()
 		}
-		return &IsNullCondition{Property: c.left.name()}, nil
+		return &IsNullCondition{Property: c.left.toProperty()}, nil
 	}
 
 	comparator := ForwardComparator(c.opType)
 	if !comparator.Valid() {
 		return nil, fmt.Errorf("%w: %s at %d", ErrUnexpectedToken, c.op.GetContent(), c.op.GetPosition())
 	}
-	return &ForwardComparatorCondition{Comparator: comparator, Property: c.left.name(), Value: c.right.value()}, nil
+	return &ForwardComparatorCondition{Comparator: comparator, Property: c.left.toProperty(), Value: c.right.value()}, nil
 }
 
 func (c *forwardComparatorCondition) toUnexpectedTokenError() error {
@@ -50,10 +50,10 @@ func (c *forwardComparatorCondition) toUnexpectedTokenError() error {
 }
 
 type backwardComparatorCondition struct {
-	left   conditionValuer
+	left   valueAST
 	op     *OperatorToken
 	opType string
-	right  *conditionField
+	right  propertyAST
 }
 
 func (c *backwardComparatorCondition) toCondition() (Condition, error) {
@@ -63,14 +63,14 @@ func (c *backwardComparatorCondition) toCondition() (Condition, error) {
 		if !comparator.Valid() {
 			return nil, fmt.Errorf("%w: %s at %d", ErrUnexpectedToken, c.op.GetContent(), c.op.GetPosition())
 		}
-		return &EitherComparatorCondition{Comparator: comparator, Property: c.right.name(), Value: c.left.value()}, nil
+		return &EitherComparatorCondition{Comparator: comparator, Property: c.right.toProperty(), Value: c.left.value()}, nil
 	}
 
 	comparator := BackwardComparator(c.opType)
 	if !comparator.Valid() {
 		return nil, fmt.Errorf("%w: %s at %d", ErrUnexpectedToken, c.op.GetContent(), c.op.GetPosition())
 	}
-	return &BackwardComparatorCondition{Comparator: comparator, Property: c.right.name(), Value: c.left.value()}, nil
+	return &BackwardComparatorCondition{Comparator: comparator, Property: c.right.toProperty(), Value: c.left.value()}, nil
 }
 
 func (c *backwardComparatorCondition) toUnexpectedTokenError() error {
@@ -108,10 +108,17 @@ func (c *compoundComparatorCondition) toUnexpectedTokenError() error {
 	return c.left.toUnexpectedTokenError()
 }
 
+type propertyAST interface {
+	conditionAST
+	toProperty() Property
+}
+
 type conditionField struct {
 	sym *SymbolToken
 	str *StringToken
 }
+
+var _ propertyAST = (*conditionField)(nil)
 
 func (c *conditionField) name() string {
 	if c.sym != nil {
@@ -127,6 +134,10 @@ func (c *conditionField) token() Token {
 	return c.str
 }
 
+func (c *conditionField) toProperty() Property {
+	return Property{Name: c.name()}
+}
+
 func (c *conditionField) toCondition() (Condition, error) {
 	return nil, c.toUnexpectedTokenError()
 }
@@ -135,16 +146,39 @@ func (c *conditionField) toUnexpectedTokenError() error {
 	return fmt.Errorf("%w: %s at %d", ErrUnexpectedToken, c.token().GetContent(), c.token().GetPosition())
 }
 
+type conditionFieldAccess struct {
+	left  propertyAST
+	right propertyAST
+}
+
+var _ propertyAST = (*conditionFieldAccess)(nil)
+
+func (c *conditionFieldAccess) toProperty() Property {
+	left := c.left.toProperty()
+	right := c.right.toProperty()
+
+	last := &left
+	for last.Child != nil {
+		last = last.Child
+	}
+	last.Child = &right
+	return left
+}
+
+func (c *conditionFieldAccess) toCondition() (Condition, error) {
+	return nil, c.toUnexpectedTokenError()
+}
+
+func (c *conditionFieldAccess) toUnexpectedTokenError() error {
+	return c.left.toUnexpectedTokenError()
+}
+
 type conditionValue struct {
 	b    *BooleanToken
 	s    *StringToken
 	n    *NumericToken
 	null *KeywordToken
 	bind *BindingToken
-}
-
-func (c *conditionValue) isNumericValue() bool {
-	return c.n != nil
 }
 
 func (c *conditionValue) token() Token {
@@ -215,7 +249,7 @@ func (c *conditionKey) toUnexpectedTokenError() error {
 
 type conditionArray struct {
 	arrayKeyword *KeywordToken
-	values       []conditionValuer
+	values       []valueAST
 }
 
 func (c *conditionArray) value() any {

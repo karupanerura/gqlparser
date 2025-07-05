@@ -144,7 +144,7 @@ func acceptSelectAggregationQueryBody(query *AggregationQuery) tokenAcceptor {
 func acceptAggregations(aggregations *[]Aggregation) tokenAcceptor {
 	var upTo int64
 	var alias string
-	var prop string
+	var prop Property
 	return &conditionalTokenAcceptor{
 		ifAccept: acceptKeyword("COUNT"),
 		andThen: tokenAcceptors{
@@ -257,19 +257,7 @@ func acceptAggregations(aggregations *[]Aggregation) tokenAcceptor {
 					skipWhitespaceToken,
 					acceptOperator("("),
 					skipWhitespaceToken,
-					acceptEitherToken(
-						func(token *SymbolToken) error {
-							prop = token.Content
-							return nil
-						},
-						func(token *StringToken) error {
-							if token.Quote != '`' {
-								return fmt.Errorf("%w: %s at %d", ErrUnexpectedToken, token.GetContent(), token.GetPosition())
-							}
-							prop = token.Content
-							return nil
-						},
-					),
+					acceptProperty(&prop),
 					skipWhitespaceToken,
 					acceptOperator(")"),
 					&conditionalTokenAcceptor{
@@ -319,19 +307,7 @@ func acceptAggregations(aggregations *[]Aggregation) tokenAcceptor {
 						skipWhitespaceToken,
 						acceptOperator("("),
 						skipWhitespaceToken,
-						acceptEitherToken(
-							func(token *SymbolToken) error {
-								prop = token.Content
-								return nil
-							},
-							func(token *StringToken) error {
-								if token.Quote != '`' {
-									return fmt.Errorf("%w: %s at %d", ErrUnexpectedToken, token.GetContent(), token.GetPosition())
-								}
-								prop = token.Content
-								return nil
-							},
-						),
+						acceptProperty(&prop),
 						skipWhitespaceToken,
 						acceptOperator(")"),
 						&conditionalTokenAcceptor{
@@ -516,52 +492,39 @@ func acceptDistinctBody(query *Query) tokenAcceptor {
 }
 
 func acceptProperties(props *[]Property, wildcard bool) tokenAcceptor {
+	var prop Property
 	if wildcard {
-		return tokenAcceptors{
-			acceptTokenFromAny3(
-				func(*WildcardToken) error {
-					*props = nil
-					return nil
-				},
-				func(tok *SymbolToken) error {
-					*props = append(*props, Property(tok.Content))
-					return nil
-				},
-				func(tok *StringToken) error {
-					if tok.Quote != '`' {
-						return fmt.Errorf("%w: %s at %d", ErrUnexpectedToken, tok.Content, tok.Position)
-					}
-					*props = append(*props, Property(tok.Content))
-					return nil
-				},
-			),
-			&conditionalTokenAcceptor{
-				ifAccept: tokenAcceptors{
-					skipWhitespaceToken,
-					acceptOperator(","),
-					skipWhitespaceToken,
-				},
-				andThen: deferAcceptor(func() tokenAcceptor {
-					return acceptProperties(props, false)
+		return &conditionalTokenAcceptor{
+			ifAccept: acceptWildcardToken,
+			andThen: deferAcceptor(func() tokenAcceptor {
+				return nopAcceptor
+			}),
+			orElse: tokenAcceptors{
+				acceptProperty(&prop),
+				deferAcceptor(func() tokenAcceptor {
+					*props = append(*props, prop)
+					return nopAcceptor
 				}),
-				orElse: nopAcceptor,
+				&conditionalTokenAcceptor{
+					ifAccept: tokenAcceptors{
+						skipWhitespaceToken,
+						acceptOperator(","),
+						skipWhitespaceToken,
+					},
+					andThen: deferAcceptor(func() tokenAcceptor {
+						return acceptProperties(props, false)
+					}),
+					orElse: nopAcceptor,
+				},
 			},
 		}
 	} else {
 		return tokenAcceptors{
-			acceptEitherToken(
-				func(tok *SymbolToken) error {
-					*props = append(*props, Property(tok.Content))
-					return nil
-				},
-				func(tok *StringToken) error {
-					if tok.Quote != '`' {
-						return fmt.Errorf("%w: %s at %d", ErrUnexpectedToken, tok.Content, tok.Position)
-					}
-					*props = append(*props, Property(tok.Content))
-					return nil
-				},
-			),
+			acceptProperty(&prop),
+			deferAcceptor(func() tokenAcceptor {
+				*props = append(*props, prop)
+				return nopAcceptor
+			}),
 			&conditionalTokenAcceptor{
 				ifAccept: tokenAcceptors{
 					skipWhitespaceToken,
@@ -592,7 +555,7 @@ func ParseCondition(ts TokenSource) (Condition, error) {
 
 func acceptCondition(cond *Condition) tokenAcceptor {
 	return tokenAcceptorFn(func(tr tokenReader) error {
-		ast, err := constructAST(tr, 0)
+		ast, err := constructConditionAST(tr, 0)
 		if err != nil {
 			return err
 		}
@@ -715,8 +678,8 @@ func acceptKeyPath(keyPaths *[]*KeyPath) tokenAcceptor {
 	}
 }
 
-func acceptArrayBody(result *[]conditionValuer) tokenAcceptor {
-	var v conditionValuer
+func acceptArrayBody(result *[]valueAST) tokenAcceptor {
+	var v valueAST
 	return tokenAcceptors{
 		acceptOperator("("),
 		skipWhitespaceToken,
@@ -735,8 +698,8 @@ func acceptArrayBody(result *[]conditionValuer) tokenAcceptor {
 	}
 }
 
-func acceptMoreArrayBody(result *[]conditionValuer) tokenAcceptor {
-	var v conditionValuer
+func acceptMoreArrayBody(result *[]valueAST) tokenAcceptor {
+	var v valueAST
 	return tokenAcceptors{
 		skipWhitespaceToken,
 		acceptConditionValue(&v),
@@ -802,19 +765,7 @@ func acceptDateTimeBody(result *time.Time) tokenAcceptor {
 func acceptOrderByBody(orderBy *[]OrderBy) tokenAcceptor {
 	var prop Property
 	return tokenAcceptors{
-		acceptEitherToken(
-			func(tok *SymbolToken) error {
-				prop = Property(tok.Content)
-				return nil
-			},
-			func(tok *StringToken) error {
-				if tok.Quote != '`' {
-					return fmt.Errorf("%w: %s at %d", ErrUnexpectedToken, tok.Content, tok.Position)
-				}
-				prop = Property(tok.Content)
-				return nil
-			},
-		),
+		acceptProperty(&prop),
 		&conditionalTokenAcceptor{
 			ifAccept: tokenAcceptors{
 				acceptWhitespaceToken,
@@ -930,6 +881,36 @@ func acceptOffsetBody(offset *Offset) tokenAcceptor {
 				}
 				offset.Position = token.Int64
 				return nil
+			}),
+			orElse: nopAcceptor,
+		},
+	}
+}
+
+func acceptProperty(property *Property) tokenAcceptor {
+	return tokenAcceptors{
+		acceptEitherToken(
+			func(token *SymbolToken) error {
+				property.Name = token.Content
+				return nil
+			},
+			func(token *StringToken) error {
+				if token.Quote == '`' {
+					property.Name = token.Content
+					return nil
+				}
+				return fmt.Errorf("%w: %s at %d", ErrUnexpectedToken, token.GetContent(), token.GetPosition())
+			},
+		),
+		&conditionalTokenAcceptor{
+			ifAccept: tokenAcceptors{
+				skipWhitespaceToken,
+				acceptOperator("."),
+				skipWhitespaceToken,
+			},
+			andThen: deferAcceptor(func() tokenAcceptor {
+				property.Child = new(Property)
+				return acceptProperty(property.Child)
 			}),
 			orElse: nopAcceptor,
 		},

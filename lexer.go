@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/karupanerura/runetrie"
 )
@@ -119,7 +120,7 @@ func (l *Lexer) Read() (Token, error) {
 		l.position += w
 		return t, nil
 
-	case '(', ',', ')', '=':
+	case '(', ',', ')', '=', '.':
 		t := &OperatorToken{Type: l.source[l.position : l.position+1], Position: l.position}
 		l.position++
 		return t, nil
@@ -248,11 +249,12 @@ func takeBindingToken(s string, pos int) (*BindingToken, int, error) {
 			}
 		}
 	default:
-		for isSymbolByte(s[width]) {
-			width++
-			if width == len(s) {
+		for width < len(s) {
+			r, size := utf8.DecodeRuneInString(s[width:])
+			if r == utf8.RuneError || !isSymbol(r) {
 				break
 			}
+			width += size
 		}
 	}
 
@@ -303,49 +305,25 @@ func takeNumericToken(s string, pos int) (Token, int, error) {
 
 func takeSymbolToken(s string, pos int) (*SymbolToken, int, error) {
 	width := 0
-	for isSymbolByte(s[width]) {
-		width++
-		if width == len(s) {
-			return &SymbolToken{Content: s[:width], Position: pos}, width, nil
+	for width < len(s) {
+		r, size := utf8.DecodeRuneInString(s[width:])
+		if r == utf8.RuneError || !isSymbol(r) {
+			break
 		}
+		width += size
 	}
 	if width == 0 {
 		return nil, 0, fmt.Errorf("unexpected token: %c", s[width])
 	}
-	for s[width] == '.' {
-		width++
-		if width == len(s) {
-			return &SymbolToken{Content: s[:width], Position: pos}, width, nil
-		}
-		base := width
-		for isSymbolFollowingByte(s[width]) {
-			width++
-			if width == len(s) {
-				return &SymbolToken{Content: s[:width], Position: pos}, width, nil
-			}
-		}
-		if width == base {
-			return nil, 0, fmt.Errorf("unexpected token: %c", s[width])
-		}
-	}
-
 	return &SymbolToken{Content: s[:width], Position: pos}, width, nil
 }
 
-// isSymbolByte matches the regular expression `[a-zA-Z0-9_$]`.
-func isSymbolByte(b byte) bool {
-	if b > unicode.MaxASCII {
-		return false
-	}
-	return unicode.IsLetter(rune(b)) || unicode.IsDigit(rune(b)) || b == '_' || b == '$'
-}
-
-// isSymbolFollowingByte matches the regular expression `[0-9_$]`.
-func isSymbolFollowingByte(b byte) bool {
-	if b > unicode.MaxASCII {
-		return false
-	}
-	return unicode.IsDigit(rune(b)) || b == '_' || b == '$'
+// isSymbol matches the byte of a symbol.
+// A symbol is a sequence of letters, digits, underscores, dollar signs, or unicode characters in the range from U+0080 to U+FFFF (inclusive),
+// so long as the name does not begin with a digit.
+// For example, foo, bar17, x_y, big$bux, __qux
+func isSymbol(b rune) bool {
+	return unicode.IsLetter(b) || unicode.IsDigit(b) || b == '_' || b == '$' || (b > unicode.MaxASCII && unicode.IsPrint(b))
 }
 
 var unquoteReplacer = strings.NewReplacer(

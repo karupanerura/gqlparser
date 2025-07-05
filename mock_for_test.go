@@ -5,5 +5,4 @@ import (
 	"github.com/karupanerura/gqlparser/internal/testutils"
 )
 
-type debugLogger = testutils.DebugLogger
-type debugTokenSource = testutils.DebugTokenSource[gqlparser.Token]
+var defaultTokenSourceFactory = testutils.NewTestTokenSourceFactory[gqlparser.Token](gqlparser.ErrEndOfToken)

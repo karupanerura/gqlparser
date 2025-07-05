@@ -21,24 +21,24 @@ func TestConditionBind(t *testing.T) {
 			condition: &gqlparser.OrCompoundCondition{
 				Left: &gqlparser.EitherComparatorCondition{
 					Comparator: gqlparser.GreaterThanEitherComparator,
-					Property:   "a",
+					Property:   gqlparser.Property{Name: "a"},
 					Value:      &gqlparser.IndexedBinding{Index: 1},
 				},
 				Right: &gqlparser.ForwardComparatorCondition{
 					Comparator: gqlparser.ContainsForwardComparator,
-					Property:   "a",
+					Property:   gqlparser.Property{Name: "a"},
 					Value:      &gqlparser.IndexedBinding{Index: 2},
 				},
 			},
 			want: &gqlparser.OrCompoundCondition{
 				Left: &gqlparser.EitherComparatorCondition{
 					Comparator: gqlparser.GreaterThanEitherComparator,
-					Property:   "a",
+					Property:   gqlparser.Property{Name: "a"},
 					Value:      int64(10),
 				},
 				Right: &gqlparser.ForwardComparatorCondition{
 					Comparator: gqlparser.ContainsForwardComparator,
-					Property:   "a",
+					Property:   gqlparser.Property{Name: "a"},
 					Value:      int64(20),
 				},
 			},
@@ -59,14 +59,14 @@ func TestConditionBind(t *testing.T) {
 			condition: &gqlparser.AndCompoundCondition{
 				Left: &gqlparser.ForwardComparatorCondition{
 					Comparator: gqlparser.HasAncestorForwardComparator,
-					Property:   "__key__",
+					Property:   gqlparser.Property{Name: "__key__"},
 					Value:      &gqlparser.NamedBinding{Name: "ancestor"},
 				},
 				Right: &gqlparser.OrCompoundCondition{
-					Left: &gqlparser.IsNullCondition{Property: "a"},
+					Left: &gqlparser.IsNullCondition{Property: gqlparser.Property{Name: "a"}},
 					Right: &gqlparser.BackwardComparatorCondition{
 						Comparator: gqlparser.InBackwardComparator,
-						Property:   "a",
+						Property:   gqlparser.Property{Name: "a"},
 						Value:      &gqlparser.NamedBinding{Name: "list"},
 					},
 				},
@@ -74,7 +74,7 @@ func TestConditionBind(t *testing.T) {
 			want: &gqlparser.AndCompoundCondition{
 				Left: &gqlparser.ForwardComparatorCondition{
 					Comparator: gqlparser.HasAncestorForwardComparator,
-					Property:   "__key__",
+					Property:   gqlparser.Property{Name: "__key__"},
 					Value: &gqlparser.Key{
 						Path: []*gqlparser.KeyPath{
 							{Kind: "Parent", Name: "foo"},
@@ -82,10 +82,10 @@ func TestConditionBind(t *testing.T) {
 					},
 				},
 				Right: &gqlparser.OrCompoundCondition{
-					Left: &gqlparser.IsNullCondition{Property: "a"},
+					Left: &gqlparser.IsNullCondition{Property: gqlparser.Property{Name: "a"}},
 					Right: &gqlparser.BackwardComparatorCondition{
 						Comparator: gqlparser.InBackwardComparator,
-						Property:   "a",
+						Property:   gqlparser.Property{Name: "a"},
 						Value:      []any{int64(10), int64(20)},
 					},
 				},

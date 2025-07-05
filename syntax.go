@@ -11,7 +11,15 @@ type Kind string
 type ProjectID string
 
 // Property represents a property name of a datastore entity in the GQL syntax.
-type Property string
+type Property struct {
+	// Name is the name of the property.
+	Name string
+
+	// Child is an optional child property.
+	// If set, it represents a nested property access.
+	// For example, if Name is "foo" and Child is "bar", it represents "foo.bar".
+	Child *Property
+}
 
 // Cursor represents a datastore pagination cursor in the GQL syntax.
 type Cursor string
@@ -235,7 +243,7 @@ type Condition interface {
 
 // IsNullCondition represents a condition that checks if a property is null.
 type IsNullCondition struct {
-	Property string
+	Property Property
 }
 
 func (*IsNullCondition) isCondition()                   {}
@@ -256,7 +264,7 @@ type ForwardComparatorCondition struct {
 	Comparator ForwardComparator
 
 	// Property is the property to be compared.
-	Property string
+	Property Property
 
 	// Value is the value to be compared against.
 	Value any
@@ -317,7 +325,7 @@ type BackwardComparatorCondition struct {
 	Comparator BackwardComparator
 
 	// Property is the property to be compared.
-	Property string
+	Property Property
 
 	// Value is the value to be compared against.
 	Value any
@@ -380,7 +388,7 @@ type EitherComparatorCondition struct {
 	Comparator EitherComparator
 
 	// Property is the property to be compared.
-	Property string
+	Property Property
 
 	// Value is the value to be compared against.
 	Value any

@@ -10,28 +10,6 @@ import (
 	"github.com/karupanerura/gqlparser"
 )
 
-type sliceTokenSource struct {
-	s []gqlparser.Token
-}
-
-func (ts *sliceTokenSource) Read() (gqlparser.Token, error) {
-	if len(ts.s) == 0 {
-		return nil, gqlparser.ErrEndOfToken
-	}
-
-	tok := ts.s[0]
-	ts.s = ts.s[1:]
-	return tok, nil
-}
-
-func (ts *sliceTokenSource) Unread(tok gqlparser.Token) {
-	ts.s = append([]gqlparser.Token{tok}, ts.s...)
-}
-
-func (ts *sliceTokenSource) Next() bool {
-	return len(ts.s) != 0
-}
-
 func TestParseQuery(t *testing.T) {
 	// t.Parallel()
 
@@ -68,7 +46,7 @@ func TestParseQuery(t *testing.T) {
 				&gqlparser.SymbolToken{Content: "Kind"},
 			},
 			want: &gqlparser.Query{
-				Properties: []gqlparser.Property{"a"},
+				Properties: []gqlparser.Property{{Name: "a"}},
 				Kind:       "Kind",
 			},
 		},
@@ -88,7 +66,7 @@ func TestParseQuery(t *testing.T) {
 				&gqlparser.SymbolToken{Content: "Kind"},
 			},
 			want: &gqlparser.Query{
-				Properties: []gqlparser.Property{"a", "b", "c"},
+				Properties: []gqlparser.Property{{Name: "a"}, {Name: "b"}, {Name: "c"}},
 				Kind:       "Kind",
 			},
 		},
@@ -107,7 +85,7 @@ func TestParseQuery(t *testing.T) {
 			},
 			want: &gqlparser.Query{
 				Distinct:   true,
-				Properties: []gqlparser.Property{"a"},
+				Properties: []gqlparser.Property{{Name: "a"}},
 				Kind:       "Kind",
 			},
 		},
@@ -130,7 +108,7 @@ func TestParseQuery(t *testing.T) {
 			},
 			want: &gqlparser.Query{
 				Distinct:   true,
-				Properties: []gqlparser.Property{"a", "b", "c"},
+				Properties: []gqlparser.Property{{Name: "a"}, {Name: "b"}, {Name: "c"}},
 				Kind:       "Kind",
 			},
 		},
@@ -160,7 +138,7 @@ func TestParseQuery(t *testing.T) {
 			},
 			want: &gqlparser.Query{
 				Distinct:   true,
-				Properties: []gqlparser.Property{"a", "b", "c", "d"},
+				Properties: []gqlparser.Property{{Name: "a"}, {Name: "b"}, {Name: "c"}, {Name: "d"}},
 				Kind:       "Kind",
 			},
 		},
@@ -187,8 +165,8 @@ func TestParseQuery(t *testing.T) {
 				&gqlparser.SymbolToken{Content: "Kind"},
 			},
 			want: &gqlparser.Query{
-				DistinctOn: []gqlparser.Property{"a", "b"},
-				Properties: []gqlparser.Property{"c", "d"},
+				DistinctOn: []gqlparser.Property{{Name: "a"}, {Name: "b"}},
+				Properties: []gqlparser.Property{{Name: "c"}, {Name: "d"}},
 				Kind:       "Kind",
 			},
 		},
@@ -213,7 +191,7 @@ func TestParseQuery(t *testing.T) {
 			},
 			want: &gqlparser.Query{
 				Kind:  "Kind",
-				Where: &gqlparser.EitherComparatorCondition{Comparator: "=", Property: "col", Value: int64(1)},
+				Where: &gqlparser.EitherComparatorCondition{Comparator: "=", Property: gqlparser.Property{Name: "col"}, Value: int64(1)},
 			},
 		},
 		{
@@ -237,7 +215,7 @@ func TestParseQuery(t *testing.T) {
 			},
 			want: &gqlparser.Query{
 				Kind:  "Kind",
-				Where: &gqlparser.EitherComparatorCondition{Comparator: "=", Property: "col", Value: &gqlparser.IndexedBinding{Index: 1}},
+				Where: &gqlparser.EitherComparatorCondition{Comparator: "=", Property: gqlparser.Property{Name: "col"}, Value: &gqlparser.IndexedBinding{Index: 1}},
 			},
 		},
 		{
@@ -263,7 +241,7 @@ func TestParseQuery(t *testing.T) {
 			},
 			want: &gqlparser.Query{
 				Kind:  "Kind",
-				Where: &gqlparser.EitherComparatorCondition{Comparator: "=", Property: "col", Value: int64(1)},
+				Where: &gqlparser.EitherComparatorCondition{Comparator: "=", Property: gqlparser.Property{Name: "col"}, Value: int64(1)},
 			},
 		},
 		{
@@ -335,6 +313,10 @@ func TestParseQuery(t *testing.T) {
 				&gqlparser.OperatorToken{Type: "OR"},
 				&gqlparser.WhitespaceToken{Content: " "},
 				&gqlparser.SymbolToken{Content: "col"},
+				&gqlparser.OperatorToken{Type: "."},
+				&gqlparser.SymbolToken{Content: "child"},
+				&gqlparser.OperatorToken{Type: "."},
+				&gqlparser.SymbolToken{Content: "grand_child"},
 				&gqlparser.WhitespaceToken{Content: " "},
 				&gqlparser.OperatorToken{Type: "IS"},
 				&gqlparser.WhitespaceToken{Content: " "},
@@ -346,6 +328,8 @@ func TestParseQuery(t *testing.T) {
 				&gqlparser.KeywordToken{Name: "BY"},
 				&gqlparser.WhitespaceToken{Content: " "},
 				&gqlparser.SymbolToken{Content: "foo"},
+				&gqlparser.OperatorToken{Type: "."},
+				&gqlparser.SymbolToken{Content: "bar"},
 				&gqlparser.WhitespaceToken{Content: " "},
 				&gqlparser.OrderToken{Descending: true},
 				&gqlparser.OperatorToken{Type: ","},
@@ -372,22 +356,22 @@ func TestParseQuery(t *testing.T) {
 				&gqlparser.NumericToken{Int64: 2},
 			},
 			want: &gqlparser.Query{
-				Properties: []gqlparser.Property{"c", "d"},
-				DistinctOn: []gqlparser.Property{"a", "b"},
+				Properties: []gqlparser.Property{{Name: "c"}, {Name: "d"}},
+				DistinctOn: []gqlparser.Property{{Name: "a"}, {Name: "b"}},
 				Kind:       "Kind",
 				Where: &gqlparser.OrCompoundCondition{
-					Left: &gqlparser.BackwardComparatorCondition{Comparator: "HAS DESCENDANT", Property: "__key__", Value: &gqlparser.Key{Path: []*gqlparser.KeyPath{{Kind: "Kind", ID: 1}}}},
+					Left: &gqlparser.BackwardComparatorCondition{Comparator: "HAS DESCENDANT", Property: gqlparser.Property{Name: "__key__"}, Value: &gqlparser.Key{Path: []*gqlparser.KeyPath{{Kind: "Kind", ID: 1}}}},
 					Right: &gqlparser.AndCompoundCondition{
-						Left: &gqlparser.ForwardComparatorCondition{Comparator: "HAS ANCESTOR", Property: "__key__", Value: &gqlparser.Key{Path: []*gqlparser.KeyPath{{Kind: "Kind", Name: "key1"}}}},
+						Left: &gqlparser.ForwardComparatorCondition{Comparator: "HAS ANCESTOR", Property: gqlparser.Property{Name: "__key__"}, Value: &gqlparser.Key{Path: []*gqlparser.KeyPath{{Kind: "Kind", Name: "key1"}}}},
 						Right: &gqlparser.OrCompoundCondition{
-							Left:  &gqlparser.EitherComparatorCondition{Comparator: "=", Property: "col", Value: int64(1)},
-							Right: &gqlparser.IsNullCondition{Property: "col"},
+							Left:  &gqlparser.EitherComparatorCondition{Comparator: "=", Property: gqlparser.Property{Name: "col"}, Value: int64(1)},
+							Right: &gqlparser.IsNullCondition{Property: gqlparser.Property{Name: "col", Child: &gqlparser.Property{Name: "child", Child: &gqlparser.Property{Name: "grand_child"}}}},
 						},
 					},
 				},
 				OrderBy: []gqlparser.OrderBy{
-					{Property: "foo", Descending: true},
-					{Property: "bar"},
+					{Property: gqlparser.Property{Name: "foo", Child: &gqlparser.Property{Name: "bar"}}, Descending: true},
+					{Property: gqlparser.Property{Name: "bar"}},
 				},
 				Limit: &gqlparser.Limit{
 					Position: 11,
@@ -412,7 +396,7 @@ func TestParseQuery(t *testing.T) {
 			}
 			t.Log(query)
 
-			got, err := gqlparser.ParseQuery(&sliceTokenSource{tt.tokens})
+			got, err := gqlparser.ParseQuery(defaultTokenSourceFactory.NewSliceTokenSource(tt.tokens))
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseQuery() error = %+v, wantErr %+v", err, tt.wantErr)
 				return
@@ -556,7 +540,7 @@ func FuzzParseQueryOrAggregationQuery(f *testing.F) {
 		}
 		normalizeTokens(tokens)
 
-		_, _, _ = gqlparser.ParseQueryOrAggregationQuery(&sliceTokenSource{tokens})
+		_, _, _ = gqlparser.ParseQueryOrAggregationQuery(defaultTokenSourceFactory.NewSliceTokenSource(tokens))
 		// should be no panics
 	})
 }
@@ -630,7 +614,7 @@ func FuzzParseAggregationQuery(f *testing.F) {
 		}
 		normalizeTokens(tokens)
 
-		_, _ = gqlparser.ParseAggregationQuery(&sliceTokenSource{tokens})
+		_, _ = gqlparser.ParseAggregationQuery(defaultTokenSourceFactory.NewSliceTokenSource(tokens))
 		// should be no panics
 	})
 }
@@ -704,7 +688,7 @@ func FuzzParseQuery(f *testing.F) {
 		}
 		normalizeTokens(tokens)
 
-		_, _ = gqlparser.ParseQuery(&sliceTokenSource{tokens})
+		_, _ = gqlparser.ParseQuery(defaultTokenSourceFactory.NewSliceTokenSource(tokens))
 		// should be no panics
 	})
 }
@@ -764,7 +748,7 @@ func FuzzParseCondition(f *testing.F) {
 		}
 		normalizeTokens(tokens)
 
-		_, _ = gqlparser.ParseCondition(&sliceTokenSource{tokens})
+		_, _ = gqlparser.ParseCondition(defaultTokenSourceFactory.NewSliceTokenSource(tokens))
 		// should be no panics
 	})
 }
@@ -797,7 +781,7 @@ func FuzzParseKey(f *testing.F) {
 		}
 		normalizeTokens(tokens)
 
-		_, _ = gqlparser.ParseKey(&sliceTokenSource{tokens})
+		_, _ = gqlparser.ParseKey(defaultTokenSourceFactory.NewSliceTokenSource(tokens))
 		// should be no panics
 	})
 }

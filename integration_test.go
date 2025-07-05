@@ -30,7 +30,7 @@ var (
 			name:   "SimpleQueryWithProperties",
 			source: "SELECT `Name`, `Age` FROM `Kind`",
 			want: &gqlparser.Query{
-				Properties: []gqlparser.Property{"Name", "Age"},
+				Properties: []gqlparser.Property{{Name: "Name"}, {Name: "Age"}},
 				Kind:       "Kind",
 			},
 			wantErr: false,
@@ -41,7 +41,7 @@ var (
 			want: &gqlparser.Query{
 				Kind: "Kind",
 				Where: &gqlparser.EitherComparatorCondition{
-					Property:   "Name",
+					Property:   gqlparser.Property{Name: "Name"},
 					Comparator: gqlparser.EqualsEitherComparator,
 					Value:      "Alice",
 				},
@@ -55,7 +55,7 @@ var (
 				Kind: "Kind",
 				OrderBy: []gqlparser.OrderBy{
 					{
-						Property:   "Name",
+						Property:   gqlparser.Property{Name: "Name"},
 						Descending: true,
 					},
 				},
@@ -229,7 +229,7 @@ var (
 			want: &gqlparser.AggregationQuery{
 				Aggregations: []gqlparser.Aggregation{
 					&gqlparser.SumAggregation{
-						Property: "n",
+						Property: gqlparser.Property{Name: "n"},
 					},
 				},
 				Query: gqlparser.Query{
@@ -244,7 +244,7 @@ var (
 			want: &gqlparser.AggregationQuery{
 				Aggregations: []gqlparser.Aggregation{
 					&gqlparser.SumAggregation{
-						Property: "n",
+						Property: gqlparser.Property{Name: "n"},
 						Alias:    "s",
 					},
 				},
@@ -260,7 +260,7 @@ var (
 			want: &gqlparser.AggregationQuery{
 				Aggregations: []gqlparser.Aggregation{
 					&gqlparser.SumAggregation{
-						Property: "n",
+						Property: gqlparser.Property{Name: "n"},
 						Alias:    "sum",
 					},
 				},
@@ -276,7 +276,7 @@ var (
 			want: &gqlparser.AggregationQuery{
 				Aggregations: []gqlparser.Aggregation{
 					&gqlparser.AvgAggregation{
-						Property: "n",
+						Property: gqlparser.Property{Name: "n"},
 					},
 				},
 				Query: gqlparser.Query{
@@ -291,7 +291,7 @@ var (
 			want: &gqlparser.AggregationQuery{
 				Aggregations: []gqlparser.Aggregation{
 					&gqlparser.AvgAggregation{
-						Property: "n",
+						Property: gqlparser.Property{Name: "n"},
 						Alias:    "a",
 					},
 				},
@@ -307,7 +307,7 @@ var (
 			want: &gqlparser.AggregationQuery{
 				Aggregations: []gqlparser.Aggregation{
 					&gqlparser.AvgAggregation{
-						Property: "n",
+						Property: gqlparser.Property{Name: "n"},
 						Alias:    "avg",
 					},
 				},
@@ -322,8 +322,8 @@ var (
 			source: "SELECT AVG(n), SUM(n), COUNT_UP_TO(100), COUNT(*) FROM `Kind`",
 			want: &gqlparser.AggregationQuery{
 				Aggregations: []gqlparser.Aggregation{
-					&gqlparser.AvgAggregation{Property: "n"},
-					&gqlparser.SumAggregation{Property: "n"},
+					&gqlparser.AvgAggregation{Property: gqlparser.Property{Name: "n"}},
+					&gqlparser.SumAggregation{Property: gqlparser.Property{Name: "n"}},
 					&gqlparser.CountUpToAggregation{Limit: 100},
 					&gqlparser.CountAggregation{},
 				},
@@ -338,8 +338,8 @@ var (
 			source: "SELECT AVG(n) AS `avg`, SUM(n) AS `sum`, COUNT_UP_TO(100) AS `count_up_to`, COUNT(*) AS `count` FROM `Kind`",
 			want: &gqlparser.AggregationQuery{
 				Aggregations: []gqlparser.Aggregation{
-					&gqlparser.AvgAggregation{Property: "n", Alias: "avg"},
-					&gqlparser.SumAggregation{Property: "n", Alias: "sum"},
+					&gqlparser.AvgAggregation{Property: gqlparser.Property{Name: "n"}, Alias: "avg"},
+					&gqlparser.SumAggregation{Property: gqlparser.Property{Name: "n"}, Alias: "sum"},
 					&gqlparser.CountUpToAggregation{Limit: 100, Alias: "count_up_to"},
 					&gqlparser.CountAggregation{Alias: "count"},
 				},
@@ -359,7 +359,7 @@ var (
 				Query: gqlparser.Query{
 					Kind: "Kind",
 					Where: &gqlparser.EitherComparatorCondition{
-						Property:   "deleted",
+						Property:   gqlparser.Property{Name: "deleted"},
 						Comparator: gqlparser.EqualsEitherComparator,
 						Value:      false,
 					},
@@ -390,7 +390,7 @@ var (
 				Query: gqlparser.Query{
 					Kind: "Kind",
 					Where: &gqlparser.EitherComparatorCondition{
-						Property:   "deleted",
+						Property:   gqlparser.Property{Name: "deleted"},
 						Comparator: gqlparser.EqualsEitherComparator,
 						Value:      false,
 					},
@@ -606,7 +606,7 @@ func TestParseCondition_FromString(t *testing.T) {
 			source: `a = 1`,
 			want: &gqlparser.EitherComparatorCondition{
 				Comparator: gqlparser.EqualsEitherComparator,
-				Property:   "a",
+				Property:   gqlparser.Property{Name: "a"},
 				Value:      int64(1),
 			},
 			wantErr: false,
@@ -616,7 +616,7 @@ func TestParseCondition_FromString(t *testing.T) {
 			source: `1 = a`,
 			want: &gqlparser.EitherComparatorCondition{
 				Comparator: gqlparser.EqualsEitherComparator,
-				Property:   "a",
+				Property:   gqlparser.Property{Name: "a"},
 				Value:      int64(1),
 			},
 			wantErr: false,
@@ -626,7 +626,7 @@ func TestParseCondition_FromString(t *testing.T) {
 			source: `a = +1`,
 			want: &gqlparser.EitherComparatorCondition{
 				Comparator: gqlparser.EqualsEitherComparator,
-				Property:   "a",
+				Property:   gqlparser.Property{Name: "a"},
 				Value:      int64(1),
 			},
 			wantErr: false,
@@ -636,7 +636,7 @@ func TestParseCondition_FromString(t *testing.T) {
 			source: `+1 = a`,
 			want: &gqlparser.EitherComparatorCondition{
 				Comparator: gqlparser.EqualsEitherComparator,
-				Property:   "a",
+				Property:   gqlparser.Property{Name: "a"},
 				Value:      int64(1),
 			},
 			wantErr: false,
@@ -646,7 +646,7 @@ func TestParseCondition_FromString(t *testing.T) {
 			source: `a = -1`,
 			want: &gqlparser.EitherComparatorCondition{
 				Comparator: gqlparser.EqualsEitherComparator,
-				Property:   "a",
+				Property:   gqlparser.Property{Name: "a"},
 				Value:      int64(-1),
 			},
 			wantErr: false,
@@ -656,7 +656,7 @@ func TestParseCondition_FromString(t *testing.T) {
 			source: `-1 = a`,
 			want: &gqlparser.EitherComparatorCondition{
 				Comparator: gqlparser.EqualsEitherComparator,
-				Property:   "a",
+				Property:   gqlparser.Property{Name: "a"},
 				Value:      int64(-1),
 			},
 			wantErr: false,
@@ -666,7 +666,7 @@ func TestParseCondition_FromString(t *testing.T) {
 			source: `a = 0.5`,
 			want: &gqlparser.EitherComparatorCondition{
 				Comparator: gqlparser.EqualsEitherComparator,
-				Property:   "a",
+				Property:   gqlparser.Property{Name: "a"},
 				Value:      float64(0.5),
 			},
 			wantErr: false,
@@ -676,7 +676,7 @@ func TestParseCondition_FromString(t *testing.T) {
 			source: `0.5 = a`,
 			want: &gqlparser.EitherComparatorCondition{
 				Comparator: gqlparser.EqualsEitherComparator,
-				Property:   "a",
+				Property:   gqlparser.Property{Name: "a"},
 				Value:      float64(0.5),
 			},
 			wantErr: false,
@@ -686,7 +686,7 @@ func TestParseCondition_FromString(t *testing.T) {
 			source: `a = +0.5`,
 			want: &gqlparser.EitherComparatorCondition{
 				Comparator: gqlparser.EqualsEitherComparator,
-				Property:   "a",
+				Property:   gqlparser.Property{Name: "a"},
 				Value:      float64(0.5),
 			},
 			wantErr: false,
@@ -696,7 +696,7 @@ func TestParseCondition_FromString(t *testing.T) {
 			source: `+0.5 = a`,
 			want: &gqlparser.EitherComparatorCondition{
 				Comparator: gqlparser.EqualsEitherComparator,
-				Property:   "a",
+				Property:   gqlparser.Property{Name: "a"},
 				Value:      float64(0.5),
 			},
 			wantErr: false,
@@ -706,7 +706,7 @@ func TestParseCondition_FromString(t *testing.T) {
 			source: `a = -0.5`,
 			want: &gqlparser.EitherComparatorCondition{
 				Comparator: gqlparser.EqualsEitherComparator,
-				Property:   "a",
+				Property:   gqlparser.Property{Name: "a"},
 				Value:      float64(-0.5),
 			},
 			wantErr: false,
@@ -716,7 +716,7 @@ func TestParseCondition_FromString(t *testing.T) {
 			source: `-0.5 = a`,
 			want: &gqlparser.EitherComparatorCondition{
 				Comparator: gqlparser.EqualsEitherComparator,
-				Property:   "a",
+				Property:   gqlparser.Property{Name: "a"},
 				Value:      float64(-0.5),
 			},
 			wantErr: false,
@@ -726,7 +726,7 @@ func TestParseCondition_FromString(t *testing.T) {
 			source: `a = 'string'`,
 			want: &gqlparser.EitherComparatorCondition{
 				Comparator: gqlparser.EqualsEitherComparator,
-				Property:   "a",
+				Property:   gqlparser.Property{Name: "a"},
 				Value:      "string",
 			},
 			wantErr: false,
@@ -736,7 +736,7 @@ func TestParseCondition_FromString(t *testing.T) {
 			source: `a = true`,
 			want: &gqlparser.EitherComparatorCondition{
 				Comparator: gqlparser.EqualsEitherComparator,
-				Property:   "a",
+				Property:   gqlparser.Property{Name: "a"},
 				Value:      true,
 			},
 			wantErr: false,
@@ -746,7 +746,7 @@ func TestParseCondition_FromString(t *testing.T) {
 			source: `a = false`,
 			want: &gqlparser.EitherComparatorCondition{
 				Comparator: gqlparser.EqualsEitherComparator,
-				Property:   "a",
+				Property:   gqlparser.Property{Name: "a"},
 				Value:      false,
 			},
 			wantErr: false,
@@ -756,7 +756,7 @@ func TestParseCondition_FromString(t *testing.T) {
 			source: `a = @1`,
 			want: &gqlparser.EitherComparatorCondition{
 				Comparator: gqlparser.EqualsEitherComparator,
-				Property:   "a",
+				Property:   gqlparser.Property{Name: "a"},
 				Value:      &gqlparser.IndexedBinding{Index: 1},
 			},
 			wantErr: false,
@@ -766,7 +766,7 @@ func TestParseCondition_FromString(t *testing.T) {
 			source: `a = @foo`,
 			want: &gqlparser.EitherComparatorCondition{
 				Comparator: gqlparser.EqualsEitherComparator,
-				Property:   "a",
+				Property:   gqlparser.Property{Name: "a"},
 				Value:      &gqlparser.NamedBinding{Name: "foo"},
 			},
 			wantErr: false,
@@ -776,7 +776,7 @@ func TestParseCondition_FromString(t *testing.T) {
 			source: `a = ARRAY(1, 2, 3)`,
 			want: &gqlparser.EitherComparatorCondition{
 				Comparator: gqlparser.EqualsEitherComparator,
-				Property:   "a",
+				Property:   gqlparser.Property{Name: "a"},
 				Value:      []any{int64(1), int64(2), int64(3)},
 			},
 			wantErr: false,
@@ -786,7 +786,7 @@ func TestParseCondition_FromString(t *testing.T) {
 			source: `a = BLOB("YmluYXJ5")`,
 			want: &gqlparser.EitherComparatorCondition{
 				Comparator: gqlparser.EqualsEitherComparator,
-				Property:   "a",
+				Property:   gqlparser.Property{Name: "a"},
 				Value:      []byte("binary"),
 			},
 			wantErr: false,
@@ -796,7 +796,7 @@ func TestParseCondition_FromString(t *testing.T) {
 			source: `a = DATETIME("2013-09-29T09:30:20.00002-08:00")`,
 			want: &gqlparser.EitherComparatorCondition{
 				Comparator: gqlparser.EqualsEitherComparator,
-				Property:   "a",
+				Property:   gqlparser.Property{Name: "a"},
 				Value:      time.Date(2013, 9, 29, 9, 30, 20, 20000, time.FixedZone("PST", -8*60*60)),
 			},
 			wantErr: false,
@@ -806,7 +806,7 @@ func TestParseCondition_FromString(t *testing.T) {
 			source: `a != 1`,
 			want: &gqlparser.EitherComparatorCondition{
 				Comparator: gqlparser.NotEqualsEitherComparator,
-				Property:   "a",
+				Property:   gqlparser.Property{Name: "a"},
 				Value:      int64(1),
 			},
 			wantErr: false,
@@ -816,7 +816,7 @@ func TestParseCondition_FromString(t *testing.T) {
 			source: `a > 1`,
 			want: &gqlparser.EitherComparatorCondition{
 				Comparator: gqlparser.GreaterThanEitherComparator,
-				Property:   "a",
+				Property:   gqlparser.Property{Name: "a"},
 				Value:      int64(1),
 			},
 			wantErr: false,
@@ -826,7 +826,7 @@ func TestParseCondition_FromString(t *testing.T) {
 			source: `a >= 1`,
 			want: &gqlparser.EitherComparatorCondition{
 				Comparator: gqlparser.GreaterThanOrEqualsThanEitherComparator,
-				Property:   "a",
+				Property:   gqlparser.Property{Name: "a"},
 				Value:      int64(1),
 			},
 			wantErr: false,
@@ -836,7 +836,7 @@ func TestParseCondition_FromString(t *testing.T) {
 			source: `a < 1`,
 			want: &gqlparser.EitherComparatorCondition{
 				Comparator: gqlparser.LesserThanEitherComparator,
-				Property:   "a",
+				Property:   gqlparser.Property{Name: "a"},
 				Value:      int64(1),
 			},
 			wantErr: false,
@@ -846,7 +846,7 @@ func TestParseCondition_FromString(t *testing.T) {
 			source: `a <= 1`,
 			want: &gqlparser.EitherComparatorCondition{
 				Comparator: gqlparser.LesserThanOrEqualsEitherComparator,
-				Property:   "a",
+				Property:   gqlparser.Property{Name: "a"},
 				Value:      int64(1),
 			},
 			wantErr: false,
@@ -855,7 +855,7 @@ func TestParseCondition_FromString(t *testing.T) {
 			name:   "IsNull",
 			source: `a IS NULL`,
 			want: &gqlparser.IsNullCondition{
-				Property: "a",
+				Property: gqlparser.Property{Name: "a"},
 			},
 			wantErr: false,
 		},
@@ -864,7 +864,7 @@ func TestParseCondition_FromString(t *testing.T) {
 			source: `a CONTAINS 1`,
 			want: &gqlparser.ForwardComparatorCondition{
 				Comparator: gqlparser.ContainsForwardComparator,
-				Property:   "a",
+				Property:   gqlparser.Property{Name: "a"},
 				Value:      int64(1),
 			},
 			wantErr: false,
@@ -874,7 +874,7 @@ func TestParseCondition_FromString(t *testing.T) {
 			source: `a IN ARRAY(1, 2, 3)`,
 			want: &gqlparser.ForwardComparatorCondition{
 				Comparator: gqlparser.InForwardComparator,
-				Property:   "a",
+				Property:   gqlparser.Property{Name: "a"},
 				Value:      []any{int64(1), int64(2), int64(3)},
 			},
 			wantErr: false,
@@ -884,7 +884,7 @@ func TestParseCondition_FromString(t *testing.T) {
 			source: `a NOT IN ARRAY(2, 3, 4)`,
 			want: &gqlparser.ForwardComparatorCondition{
 				Comparator: gqlparser.NotInForwardComparator,
-				Property:   "a",
+				Property:   gqlparser.Property{Name: "a"},
 				Value:      []any{int64(2), int64(3), int64(4)},
 			},
 			wantErr: false,
@@ -894,7 +894,7 @@ func TestParseCondition_FromString(t *testing.T) {
 			source: `__key__ HAS ANCESTOR KEY(Parent, 1000)`,
 			want: &gqlparser.ForwardComparatorCondition{
 				Comparator: gqlparser.HasAncestorForwardComparator,
-				Property:   "__key__",
+				Property:   gqlparser.Property{Name: "__key__"},
 				Value: &gqlparser.Key{
 					Path: []*gqlparser.KeyPath{
 						{Kind: "Parent", ID: 1000},
@@ -908,7 +908,7 @@ func TestParseCondition_FromString(t *testing.T) {
 			source: `ARRAY(KEY(Kind, 1), KEY(Kind, 2), KEY(Kind, 3)) IN __key__`,
 			want: &gqlparser.BackwardComparatorCondition{
 				Comparator: gqlparser.InBackwardComparator,
-				Property:   "__key__",
+				Property:   gqlparser.Property{Name: "__key__"},
 				Value: []any{
 					&gqlparser.Key{
 						Path: []*gqlparser.KeyPath{
@@ -934,7 +934,7 @@ func TestParseCondition_FromString(t *testing.T) {
 			source: `KEY(Parent, 1000) HAS DESCENDANT __key__`,
 			want: &gqlparser.BackwardComparatorCondition{
 				Comparator: gqlparser.HasDescendantBackwardComparator,
-				Property:   "__key__",
+				Property:   gqlparser.Property{Name: "__key__"},
 				Value: &gqlparser.Key{
 					Path: []*gqlparser.KeyPath{
 						{Kind: "Parent", ID: 1000},
@@ -948,7 +948,7 @@ func TestParseCondition_FromString(t *testing.T) {
 			source: `a = ARRAY(777, -0.25, "foo", true, NULL, @1, @foo, ARRAY(1, 2, 3), BLOB("YmluYXJ5"), DATETIME("2013-09-29T09:30:20.00002-08:00"), KEY(Kind, 1))`,
 			want: &gqlparser.EitherComparatorCondition{
 				Comparator: gqlparser.EqualsEitherComparator,
-				Property:   "a",
+				Property:   gqlparser.Property{Name: "a"},
 				Value: []any{
 					int64(777),
 					float64(-0.25),
