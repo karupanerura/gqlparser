@@ -402,6 +402,136 @@ func TestLexer(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name:   "WhitespaceTabAndNewline",
+			source: "\t \n \r",
+			want: []gqlparser.Token{
+				&gqlparser.WhitespaceToken{Content: "\t \n \r", Position: 0},
+			},
+			wantErr: false,
+		},
+		{
+			name:   "SymbolWithDollarAndUnderscore",
+			source: "$foo _bar",
+			want: []gqlparser.Token{
+				&gqlparser.SymbolToken{Content: "$foo", Position: 0},
+				&gqlparser.WhitespaceToken{Content: " ", Position: 4},
+				&gqlparser.SymbolToken{Content: "_bar", Position: 5},
+			},
+			wantErr: false,
+		},
+		{
+			name:   "SymbolWithUnicode",
+			source: "日本語",
+			want: []gqlparser.Token{
+				&gqlparser.SymbolToken{Content: "日本語", Position: 0},
+			},
+			wantErr: false,
+		},
+		{
+			name:    "InvalidNullCharacter",
+			source:  "\u0000",
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name:    "InvalidBindingAtOnly",
+			source:  "@",
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name:    "InvalidBindingZero",
+			source:  "@0",
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name:    "UnclosedSingleQuote",
+			source:  "'abc",
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name:    "UnclosedDoubleQuote",
+			source:  "\"abc",
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name:    "UnclosedEscapeInSingleQuote",
+			source:  "'abc\\",
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name:    "UnclosedEscapeInDoubleQuote",
+			source:  "\"abc\\",
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name:   "SinglePlusOperator",
+			source: "+",
+			want: []gqlparser.Token{
+				&gqlparser.OperatorToken{Type: "+", Position: 0},
+			},
+			wantErr: false,
+		},
+		{
+			name:    "InvalidSingleMinusOperator",
+			source:  "-",
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name:    "InvalidSingleMinusOperator",
+			source:  "-",
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name:    "InvalidNumericDoubleMinus",
+			source:  "--1",
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name:    "InvalidNumericDoublePlus",
+			source:  "++1",
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name:    "InvalidNumericMultipleDots",
+			source:  "1.2.3",
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name:   "LongOperatorContains",
+			source: "CONTAINS",
+			want: []gqlparser.Token{
+				&gqlparser.OperatorToken{Type: "CONTAINS", RawContent: "CONTAINS", Position: 0},
+			},
+			wantErr: false,
+		},
+		{
+			name:   "LongOperatorAncestor",
+			source: "ANCESTOR",
+			want: []gqlparser.Token{
+				&gqlparser.OperatorToken{Type: "ANCESTOR", RawContent: "ANCESTOR", Position: 0},
+			},
+			wantErr: false,
+		},
+		{
+			name:   "LongOperatorDescendant",
+			source: "DESCENDANT",
+			want: []gqlparser.Token{
+				&gqlparser.OperatorToken{Type: "DESCENDANT", RawContent: "DESCENDANT", Position: 0},
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		tt := tt
