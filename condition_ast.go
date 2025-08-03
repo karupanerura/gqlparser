@@ -26,9 +26,6 @@ func (c *forwardComparatorCondition) toCondition() (Condition, error) {
 	if _, isEitherOP := infixEitherOperatorInvertMap[c.opType]; isEitherOP {
 		// not invert op to canonical
 		comparator := EitherComparator(c.opType)
-		if !comparator.Valid() {
-			return nil, fmt.Errorf("%w: %s at %d", ErrUnexpectedToken, c.op.GetContent(), c.op.GetPosition())
-		}
 		return &EitherComparatorCondition{Comparator: comparator, Property: c.left.toProperty(), Value: c.right.value()}, nil
 	}
 	if c.opType == "IS" {
@@ -60,9 +57,6 @@ func (c *backwardComparatorCondition) toCondition() (Condition, error) {
 	if op, isEitherOP := infixEitherOperatorInvertMap[c.opType]; isEitherOP {
 		// invert op to canonical
 		comparator := EitherComparator(op)
-		if !comparator.Valid() {
-			return nil, fmt.Errorf("%w: %s at %d", ErrUnexpectedToken, c.op.GetContent(), c.op.GetPosition())
-		}
 		return &EitherComparatorCondition{Comparator: comparator, Property: c.right.toProperty(), Value: c.left.value()}, nil
 	}
 
