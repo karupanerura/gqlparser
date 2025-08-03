@@ -2,18 +2,17 @@ package gqlparser
 
 import (
 	"errors"
+	"io"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/karupanerura/gqlparser/internal/testutils"
 )
 
 func TestConstructConditionAST(t *testing.T) {
 	tests := []struct {
 		name    string
 		tokens  []Token
-		minBP   uint8
 		want    conditionAST
 		wantErr error
 	}{
@@ -21,55 +20,46 @@ func TestConstructConditionAST(t *testing.T) {
 		{
 			name:   "SymbolToken",
 			tokens: []Token{&SymbolToken{Content: "field", Position: 0}},
-			minBP:  0,
 			want:   &conditionField{sym: &SymbolToken{Content: "field", Position: 0}},
 		},
 		{
 			name:   "BooleanToken_true",
 			tokens: []Token{&BooleanToken{Value: true, RawContent: "true", Position: 0}},
-			minBP:  0,
 			want:   &conditionValue{b: &BooleanToken{Value: true, RawContent: "true", Position: 0}},
 		},
 		{
 			name:   "BooleanToken_false",
 			tokens: []Token{&BooleanToken{Value: false, RawContent: "false", Position: 0}},
-			minBP:  0,
 			want:   &conditionValue{b: &BooleanToken{Value: false, RawContent: "false", Position: 0}},
 		},
 		{
 			name:   "StringToken_field",
 			tokens: []Token{&StringToken{Quote: '`', Content: "field", RawContent: "`field`", Position: 0}},
-			minBP:  0,
 			want:   &conditionField{str: &StringToken{Quote: '`', Content: "field", RawContent: "`field`", Position: 0}},
 		},
 		{
 			name:   "StringToken_value",
 			tokens: []Token{&StringToken{Quote: '"', Content: "value", RawContent: "\"value\"", Position: 0}},
-			minBP:  0,
 			want:   &conditionValue{s: &StringToken{Quote: '"', Content: "value", RawContent: "\"value\"", Position: 0}},
 		},
 		{
 			name:   "NumericToken_integer",
 			tokens: []Token{&NumericToken{Int64: 42, Floating: false, RawContent: "42", Position: 0}},
-			minBP:  0,
 			want:   &conditionValue{n: &NumericToken{Int64: 42, Floating: false, RawContent: "42", Position: 0}},
 		},
 		{
 			name:   "NumericToken_float",
 			tokens: []Token{&NumericToken{Float64: 3.14, Floating: true, RawContent: "3.14", Position: 0}},
-			minBP:  0,
 			want:   &conditionValue{n: &NumericToken{Float64: 3.14, Floating: true, RawContent: "3.14", Position: 0}},
 		},
 		{
 			name:   "BindingToken_named",
 			tokens: []Token{&BindingToken{Name: "param", Position: 0}},
-			minBP:  0,
 			want:   &conditionValue{bind: &BindingToken{Name: "param", Position: 0}},
 		},
 		{
 			name:   "BindingToken_indexed",
 			tokens: []Token{&BindingToken{Index: 1, Position: 0}},
-			minBP:  0,
 			want:   &conditionValue{bind: &BindingToken{Index: 1, Position: 0}},
 		},
 
@@ -77,7 +67,6 @@ func TestConstructConditionAST(t *testing.T) {
 		{
 			name:   "NestedSymbolToken",
 			tokens: []Token{&SymbolToken{Content: "field", Position: 0}, &OperatorToken{Type: ".", Position: 5}, &SymbolToken{Content: "field", Position: 6}},
-			minBP:  0,
 			want: &conditionFieldAccess{
 				left:  &conditionField{sym: &SymbolToken{Content: "field", Position: 0}},
 				right: &conditionField{sym: &SymbolToken{Content: "field", Position: 6}},
@@ -86,7 +75,6 @@ func TestConstructConditionAST(t *testing.T) {
 		{
 			name:   "MoreNestedSymbolToken",
 			tokens: []Token{&SymbolToken{Content: "field", Position: 0}, &OperatorToken{Type: ".", Position: 5}, &SymbolToken{Content: "field", Position: 6}, &OperatorToken{Type: ".", Position: 11}, &SymbolToken{Content: "field", Position: 12}},
-			minBP:  0,
 			want: &conditionFieldAccess{
 				left: &conditionFieldAccess{
 					left:  &conditionField{sym: &SymbolToken{Content: "field", Position: 0}},
@@ -107,7 +95,6 @@ func TestConstructConditionAST(t *testing.T) {
 				&NumericToken{Int64: 123, Floating: false, RawContent: "123", Position: 15},
 				&OperatorToken{Type: ")", RawContent: ")", Position: 18},
 			},
-			minBP: 0,
 			want: &conditionKey{
 				keyKeyword: &KeywordToken{Name: "KEY", RawContent: "KEY", Position: 0},
 				key: &Key{
@@ -123,7 +110,6 @@ func TestConstructConditionAST(t *testing.T) {
 		{
 			name:   "KeywordToken_NULL",
 			tokens: []Token{&KeywordToken{Name: "NULL", RawContent: "NULL", Position: 0}},
-			minBP:  0,
 			want:   &conditionValue{null: &KeywordToken{Name: "NULL", RawContent: "NULL", Position: 0}},
 		},
 
@@ -137,7 +123,6 @@ func TestConstructConditionAST(t *testing.T) {
 				&WhitespaceToken{Content: " ", Position: 7},
 				&StringToken{Quote: '"', Content: "value", RawContent: "\"value\"", Position: 8},
 			},
-			minBP: 0,
 			want: &forwardComparatorCondition{
 				left:   &conditionField{sym: &SymbolToken{Content: "field", Position: 0}},
 				op:     &OperatorToken{Type: "=", RawContent: "=", Position: 6},
@@ -154,7 +139,6 @@ func TestConstructConditionAST(t *testing.T) {
 				&WhitespaceToken{Content: " ", Position: 10},
 				&SymbolToken{Content: "field", Position: 11},
 			},
-			minBP: 0,
 			want: &backwardComparatorCondition{
 				left:   &conditionValue{s: &StringToken{Quote: '"', Content: "value", RawContent: "\"value\"", Position: 0}},
 				op:     &OperatorToken{Type: "!=", RawContent: "!=", Position: 8},
@@ -181,7 +165,6 @@ func TestConstructConditionAST(t *testing.T) {
 				&WhitespaceToken{Content: " ", Position: 30},
 				&StringToken{Quote: '"', Content: "value2", RawContent: "\"value2\"", Position: 31},
 			},
-			minBP: 0,
 			want: &compoundComparatorCondition{
 				left: &forwardComparatorCondition{
 					left:   &conditionField{sym: &SymbolToken{Content: "field1", Position: 0}},
@@ -209,12 +192,78 @@ func TestConstructConditionAST(t *testing.T) {
 				&WhitespaceToken{Content: " ", Position: 14},
 				&StringToken{Quote: '"', Content: "substring", RawContent: "\"substring\"", Position: 15},
 			},
-			minBP: 0,
 			want: &forwardComparatorCondition{
 				left:   &conditionField{sym: &SymbolToken{Content: "field", Position: 0}},
 				op:     &OperatorToken{Type: "CONTAINS", RawContent: "CONTAINS", Position: 6},
 				opType: "CONTAINS",
 				right:  &conditionValue{s: &StringToken{Quote: '"', Content: "substring", RawContent: "\"substring\"", Position: 15}},
+			},
+		},
+		{
+			name: "ForwardOperator_IS_NULL",
+			tokens: []Token{
+				&SymbolToken{Content: "field", Position: 0},
+				&WhitespaceToken{Content: " ", Position: 5},
+				&OperatorToken{Type: "IS", RawContent: "IS", Position: 6},
+				&WhitespaceToken{Content: " ", Position: 8},
+				&KeywordToken{Name: "NULL", RawContent: "NULL", Position: 9},
+			},
+			want: &forwardComparatorCondition{
+				left:   &conditionField{sym: &SymbolToken{Content: "field", Position: 0}},
+				op:     &OperatorToken{Type: "IS", RawContent: "IS", Position: 6},
+				opType: "IS",
+				right:  &conditionValue{null: &KeywordToken{Name: "NULL", RawContent: "NULL", Position: 9}},
+			},
+		},
+		{
+			name: "SpecialOperator_HAS_ANCESTOR",
+			tokens: []Token{
+				&SymbolToken{Content: "__key__"},
+				&WhitespaceToken{Content: " ", Position: 7},
+				&OperatorToken{Type: "HAS", RawContent: "HAS", Position: 8},
+				&WhitespaceToken{Content: " ", Position: 11},
+				&OperatorToken{Type: "ANCESTOR", RawContent: "ANCESTOR", Position: 12},
+				&WhitespaceToken{Content: " ", Position: 20},
+				&KeywordToken{Name: "KEY", RawContent: "KEY", Position: 21},
+				&OperatorToken{Type: "(", RawContent: "(", Position: 22},
+				&SymbolToken{Content: "EntityName", Position: 23},
+				&OperatorToken{Type: ",", RawContent: ",", Position: 33},
+				&NumericToken{Int64: 123, Floating: false, RawContent: "123", Position: 34},
+				&OperatorToken{Type: ")", RawContent: ")", Position: 37},
+			},
+			want: &forwardComparatorCondition{
+				left:   &conditionField{sym: &SymbolToken{Content: "__key__"}},
+				op:     &OperatorToken{Type: "HAS", RawContent: "HAS", Position: 8},
+				opType: "HAS ANCESTOR",
+				right: &conditionKey{
+					keyKeyword: &KeywordToken{Name: "KEY", RawContent: "KEY", Position: 21},
+					key: &Key{
+						Path: []*KeyPath{
+							{
+								Kind: "EntityName",
+								ID:   int64(123),
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "GroupedCondition_Normal",
+			tokens: []Token{
+				&OperatorToken{Type: "(", RawContent: "(", Position: 0},
+				&SymbolToken{Content: "field", Position: 1},
+				&WhitespaceToken{Content: " ", Position: 6},
+				&OperatorToken{Type: "=", RawContent: "=", Position: 7},
+				&WhitespaceToken{Content: " ", Position: 8},
+				&NumericToken{Int64: 1, Floating: false, RawContent: "1", Position: 9},
+				&OperatorToken{Type: ")", RawContent: ")", Position: 10},
+			},
+			want: &forwardComparatorCondition{
+				left:   &conditionField{sym: &SymbolToken{Content: "field", Position: 1}},
+				op:     &OperatorToken{Type: "=", RawContent: "=", Position: 7},
+				opType: "=",
+				right:  &conditionValue{n: &NumericToken{Int64: 1, Floating: false, RawContent: "1", Position: 9}},
 			},
 		},
 
@@ -230,7 +279,6 @@ func TestConstructConditionAST(t *testing.T) {
 				&WhitespaceToken{Content: " ", Position: 22},
 				&SymbolToken{Content: "field", Position: 23},
 			},
-			minBP: 0,
 			want: &backwardComparatorCondition{
 				left:   &conditionValue{s: &StringToken{Quote: '"', Content: "value", RawContent: "\"value\"", Position: 0}},
 				op:     &OperatorToken{Type: "HAS", RawContent: "HAS", Position: 8},
@@ -256,7 +304,6 @@ func TestConstructConditionAST(t *testing.T) {
 				&StringToken{Quote: '"', Content: "val2", RawContent: "\"val2\"", Position: 26},
 				&OperatorToken{Type: ")", RawContent: ")", Position: 32},
 			},
-			minBP: 0,
 			want: &forwardComparatorCondition{
 				left:   &conditionField{sym: &SymbolToken{Content: "field", Position: 0}},
 				op:     &OperatorToken{Type: "NOT", RawContent: "NOT", Position: 6},
@@ -297,7 +344,6 @@ func TestConstructConditionAST(t *testing.T) {
 				&WhitespaceToken{Content: " ", Position: 22},
 				&NumericToken{Int64: 3, Floating: false, RawContent: "3", Position: 23},
 			},
-			minBP: 0,
 			want: &compoundComparatorCondition{
 				left: &forwardComparatorCondition{
 					left:   &conditionField{sym: &SymbolToken{Content: "a", Position: 0}},
@@ -328,7 +374,6 @@ func TestConstructConditionAST(t *testing.T) {
 		{
 			name:    "Error_EmptyTokens",
 			tokens:  []Token{},
-			minBP:   0,
 			wantErr: ErrNoTokens,
 		},
 		{
@@ -336,7 +381,6 @@ func TestConstructConditionAST(t *testing.T) {
 			tokens: []Token{
 				&OrderToken{Descending: false, RawContent: "ASC", Position: 0},
 			},
-			minBP:   0,
 			wantErr: ErrUnexpectedToken,
 		},
 		{
@@ -344,7 +388,6 @@ func TestConstructConditionAST(t *testing.T) {
 			tokens: []Token{
 				&KeywordToken{Name: "UNKNOWN", RawContent: "UNKNOWN", Position: 0},
 			},
-			minBP:   0,
 			wantErr: ErrUnexpectedToken,
 		},
 		{
@@ -353,7 +396,6 @@ func TestConstructConditionAST(t *testing.T) {
 				&OperatorToken{Type: "(", RawContent: "(", Position: 0},
 				&SymbolToken{Content: "field", Position: 1},
 			},
-			minBP:   0,
 			wantErr: ErrUnexpectedToken,
 		},
 		{
@@ -362,7 +404,6 @@ func TestConstructConditionAST(t *testing.T) {
 				&OperatorToken{Type: "+", RawContent: "+", Position: 0},
 				&StringToken{Quote: '"', Content: "invalid", RawContent: "\"invalid\"", Position: 1},
 			},
-			minBP:   0,
 			wantErr: ErrUnexpectedToken,
 		},
 		{
@@ -370,7 +411,6 @@ func TestConstructConditionAST(t *testing.T) {
 			tokens: []Token{
 				&OperatorToken{Type: "INVALID", RawContent: "INVALID", Position: 0},
 			},
-			minBP:   0,
 			wantErr: ErrUnexpectedToken,
 		},
 		{
@@ -382,7 +422,6 @@ func TestConstructConditionAST(t *testing.T) {
 				&WhitespaceToken{Content: " ", Position: 11},
 				&SymbolToken{Content: "field", Position: 20},
 			},
-			minBP:   0,
 			wantErr: ErrUnexpectedToken,
 		},
 		{
@@ -393,7 +432,6 @@ func TestConstructConditionAST(t *testing.T) {
 				&OperatorToken{Type: "HAS", RawContent: "HAS", Position: 8},
 				&SymbolToken{Content: "field", Position: 20},
 			},
-			minBP:   0,
 			wantErr: ErrUnexpectedToken,
 		},
 		{
@@ -404,7 +442,6 @@ func TestConstructConditionAST(t *testing.T) {
 				&OperatorToken{Type: "HAS", RawContent: "HAS", Position: 8},
 				&WhitespaceToken{Content: " ", Position: 11},
 			},
-			minBP:   0,
 			wantErr: ErrUnexpectedToken,
 		},
 		{
@@ -418,7 +455,84 @@ func TestConstructConditionAST(t *testing.T) {
 				&WhitespaceToken{Content: " ", Position: 19},
 				&SymbolToken{Content: "field", Position: 20},
 			},
-			minBP:   0,
+			wantErr: ErrUnexpectedToken,
+		},
+		{
+			name: "ErrKeyNoBody",
+			tokens: []Token{
+				&KeywordToken{Name: "KEY", RawContent: "KEY", Position: 0},
+				&OperatorToken{Type: "(", RawContent: "(", Position: 3},
+			},
+			wantErr: ErrNoTokens,
+		},
+		{
+			name: "ErrArrayNoBody",
+			tokens: []Token{
+				&KeywordToken{Name: "ARRAY", RawContent: "ARRAY", Position: 0},
+				&OperatorToken{Type: "(", RawContent: "(", Position: 5},
+			},
+			wantErr: ErrNoTokens,
+		},
+		{
+			name: "ErrBlobNoBody",
+			tokens: []Token{
+				&KeywordToken{Name: "BLOB", RawContent: "BLOB", Position: 0},
+				&OperatorToken{Type: "(", RawContent: "(", Position: 5},
+			},
+			wantErr: ErrNoTokens,
+		},
+		{
+			name: "ErrKeyDateTimeBody",
+			tokens: []Token{
+				&KeywordToken{Name: "DATETIME", RawContent: "DATETIME", Position: 0},
+				&OperatorToken{Type: "(", RawContent: "(", Position: 3},
+			},
+			wantErr: ErrNoTokens,
+		},
+		{
+			name: "SpecialOperator_NOT_UNKNOWN_Error",
+			tokens: []Token{
+				&SymbolToken{Content: "field", Position: 0},
+				&WhitespaceToken{Content: " ", Position: 5},
+				&OperatorToken{Type: "NOT", RawContent: "NOT", Position: 6},
+				&WhitespaceToken{Content: " ", Position: 9},
+				&OperatorToken{Type: "UNKNOWN", RawContent: "UNKNOWN", Position: 10},
+			},
+			wantErr: ErrUnexpectedToken,
+		},
+		{
+			name: "DotOperator_RightNotPropertyAST_Error",
+			tokens: []Token{
+				&SymbolToken{Content: "field", Position: 0},
+				&OperatorToken{Type: ".", RawContent: ".", Position: 5},
+				&NumericToken{Int64: 123, Floating: false, RawContent: "123", Position: 6},
+			},
+			wantErr: ErrUnexpectedToken,
+		},
+		{
+			name: "GroupedCondition_Empty_Error",
+			tokens: []Token{
+				&OperatorToken{Type: "(", RawContent: "(", Position: 0},
+				&OperatorToken{Type: ")", RawContent: ")", Position: 1},
+			},
+			wantErr: ErrUnexpectedToken,
+		},
+		{
+			name: "BackwardOperator_RightNotPropertyAST_Error",
+			tokens: []Token{
+				&NumericToken{Int64: 123, Floating: false, RawContent: "123", Position: 0},
+				&OperatorToken{Type: "=", RawContent: "=", Position: 3},
+				&NumericToken{Int64: 456, Floating: false, RawContent: "456", Position: 4},
+			},
+			wantErr: ErrUnexpectedToken,
+		},
+		{
+			name: "ForwardOperator_RightNotValueAST_Error",
+			tokens: []Token{
+				&SymbolToken{Content: "field", Position: 0},
+				&OperatorToken{Type: "=", RawContent: "=", Position: 5},
+				&SymbolToken{Content: "field2", Position: 6},
+			},
 			wantErr: ErrUnexpectedToken,
 		},
 	}
@@ -429,7 +543,7 @@ func TestConstructConditionAST(t *testing.T) {
 			tokenSource := defaultTokenSourceFactory.NewSliceTokenSource(tt.tokens)
 
 			// Call constructAST
-			got, err := constructConditionAST(&testutils.DebugTokenSource[Token]{Source: tokenSource, Logger: t}, tt.minBP)
+			got, err := constructConditionAST(tokenSource, 0)
 
 			// Check error conditions
 			if tt.wantErr == nil {
@@ -502,11 +616,19 @@ func TestConstructAST_EdgeCases(t *testing.T) {
 			&OperatorToken{Type: "AND", RawContent: "AND", Position: 7},
 			&WhitespaceToken{Content: " ", Position: 10},
 			&SymbolToken{Content: "b", Position: 11},
-			&WhitespaceToken{Content: " ", Position: 12},
-			&OperatorToken{Type: "=", RawContent: "=", Position: 13},
-			&WhitespaceToken{Content: " ", Position: 14},
-			&NumericToken{Int64: 2, Floating: false, RawContent: "2", Position: 15},
-			&OperatorToken{Type: ")", RawContent: ")", Position: 16},
+			&OperatorToken{Type: ".", Position: 12},
+			&SymbolToken{Content: "c", Position: 13},
+			&OperatorToken{Type: ".", Position: 14},
+			&SymbolToken{Content: "d", Position: 15},
+			&OperatorToken{Type: ".", Position: 16},
+			&SymbolToken{Content: "e", Position: 17},
+			&OperatorToken{Type: ".", Position: 18},
+			&SymbolToken{Content: "f", Position: 19},
+			&WhitespaceToken{Content: " ", Position: 20},
+			&OperatorToken{Type: "=", RawContent: "=", Position: 21},
+			&WhitespaceToken{Content: " ", Position: 22},
+			&NumericToken{Int64: 2, Floating: false, RawContent: "2", Position: 23},
+			&OperatorToken{Type: ")", RawContent: ")", Position: 24},
 		}
 
 		tokenSource := defaultTokenSourceFactory.NewSliceTokenSource(tokens)
@@ -526,17 +648,77 @@ func TestConstructAST_EdgeCases(t *testing.T) {
 			},
 			op: &OperatorToken{Type: "AND", RawContent: "AND", Position: 7},
 			right: &forwardComparatorCondition{
-				left:   &conditionField{sym: &SymbolToken{Content: "b", Position: 11}},
-				op:     &OperatorToken{Type: "=", RawContent: "=", Position: 13},
+				left: &conditionFieldAccess{
+					left: &conditionFieldAccess{
+						left: &conditionFieldAccess{
+							left: &conditionFieldAccess{
+								left:  &conditionField{sym: &SymbolToken{Content: "b", Position: 11}},
+								right: &conditionField{sym: &SymbolToken{Content: "c", Position: 13}},
+							},
+							right: &conditionField{sym: &SymbolToken{Content: "d", Position: 15}},
+						},
+						right: &conditionField{sym: &SymbolToken{Content: "e", Position: 17}},
+					},
+					right: &conditionField{sym: &SymbolToken{Content: "f", Position: 19}},
+				},
+				op:     &OperatorToken{Type: "=", RawContent: "=", Position: 21},
 				opType: "=",
-				right:  &conditionValue{n: &NumericToken{Int64: 2, Floating: false, RawContent: "2", Position: 15}},
+				right:  &conditionValue{n: &NumericToken{Int64: 2, Floating: false, RawContent: "2", Position: 23}},
 			},
 		}
 
 		if diff := cmp.Diff(want, got, cmp.AllowUnexported(
-			conditionField{}, conditionValue{}, forwardComparatorCondition{}, compoundComparatorCondition{},
+			conditionField{}, conditionFieldAccess{}, conditionValue{}, forwardComparatorCondition{}, compoundComparatorCondition{},
 		)); diff != "" {
 			t.Errorf("constructAST() mismatch (-want +got):\n%s", diff)
+		}
+	})
+
+	t.Run("ReadError", func(t *testing.T) {
+		t.Parallel()
+		for _, tt := range []struct {
+			name     string
+			position int
+		}{
+			{
+				name:     "FirstToken",
+				position: 0,
+			},
+			{
+				name:     "FirstWhitespace",
+				position: 1,
+			},
+			{
+				name:     "OperatorToken",
+				position: 2,
+			},
+			{
+				name:     "SecondWhitespace",
+				position: 3,
+			},
+			{
+				name:     "NumericToken",
+				position: 4,
+			},
+		} {
+			tt := tt
+			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
+				ts := defaultTokenSourceFactory.NewErrorTokenSource([]Token{
+					&SymbolToken{Content: "field", Position: 0},
+					&WhitespaceToken{Content: " ", Position: 5},
+					&OperatorToken{Type: "=", RawContent: "=", Position: 6},
+					&WhitespaceToken{Content: " ", Position: 7},
+					&NumericToken{Int64: 42, Floating: false, RawContent: "42", Position: 8},
+				}, map[int]error{
+					tt.position: io.ErrUnexpectedEOF,
+				})
+
+				got, err := constructConditionAST(ts, 0)
+				if err == nil {
+					t.Errorf("constructAST() expected error, got = %v", got)
+				}
+			})
 		}
 	})
 }
