@@ -172,6 +172,13 @@ type DebugLogger interface {
 	Logf(string, ...any)
 }
 
+// DebugLoggerFunc is a simple implementation of DebugLogger that uses log.Printf.
+type DebugLoggerFunc func(string, ...any)
+
+func (f DebugLoggerFunc) Logf(format string, args ...any) {
+	f(format, args...)
+}
+
 // DebugTokenSource is a wrapper around TokenSource that adds debug logging
 // for the Next, Read, and Unread methods.
 type DebugTokenSource[T any] struct {
