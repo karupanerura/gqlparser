@@ -8,6 +8,8 @@ import (
 )
 
 func TestConditionBind(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		resolver  *gqlparser.BindingResolver
@@ -96,6 +98,8 @@ func TestConditionBind(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			err := tt.condition.Bind(tt.resolver)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Bind() error = %+v, wantErr %+v", err, tt.wantErr)
@@ -103,6 +107,52 @@ func TestConditionBind(t *testing.T) {
 			}
 			if df := cmp.Diff(tt.want, tt.condition); df != "" {
 				t.Errorf("ParseQuery() = %+v, want %+v, diff = %s", tt.condition, tt.want, df)
+			}
+		})
+	}
+}
+
+func TestPropertyString(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		property gqlparser.Property
+		want     string
+	}{
+		{
+			name:     "SimpleProperty",
+			property: gqlparser.Property{Name: "name"},
+			want:     "name",
+		},
+		{
+			name: "NestedProperty",
+			property: gqlparser.Property{
+				Name: "user",
+				Child: &gqlparser.Property{Name: "email"},
+			},
+			want: "user.email",
+		},
+		{
+			name: "DeeplyNestedProperty",
+			property: gqlparser.Property{
+				Name: "user",
+				Child: &gqlparser.Property{
+					Name: "profile",
+					Child: &gqlparser.Property{Name: "address"},
+				},
+			},
+			want: "user.profile.address",
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := tt.property.String()
+			if got != tt.want {
+				t.Errorf("Property.String() = %v, want %v", got, tt.want)
 			}
 		})
 	}

@@ -21,6 +21,14 @@ type Property struct {
 	Child *Property
 }
 
+// String returns the string representation of the Property.
+func (p *Property) String() string {
+	if p.Child != nil {
+		return p.Name + "." + p.Child.String()
+	}
+	return p.Name
+}
+
 // Cursor represents a datastore pagination cursor in the GQL syntax.
 type Cursor string
 
