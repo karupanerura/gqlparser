@@ -27,43 +27,62 @@ type Lexer struct {
 
 var _ TokenSource = (*Lexer)(nil)
 
+type keywordKind uint8
+
+const (
+	syntaxKeywordKind keywordKind = iota
+	operatorKeywordKind
+	orderKeywordKind
+	booleanKeywordKind
+)
+
 var (
-	keywordTrie  = runetrie.Must(runetrie.NewCaseInsensitiveTrie[string]())
-	operatorTrie = runetrie.Must(runetrie.NewCaseInsensitiveTrie[string]())
-	orderTrie    = runetrie.Must(runetrie.NewCaseInsensitiveTrie[string]())
-	booleanTrie  = runetrie.Must(runetrie.NewCaseInsensitiveTrie[string]())
+	keywordTrie    = runetrie.Must(runetrie.NewCaseInsensitiveTrie[string]())
+	keywordKindMap = map[string]keywordKind{
+		"SELECT":      syntaxKeywordKind,
+		"FROM":        syntaxKeywordKind,
+		"WHERE":       syntaxKeywordKind,
+		"AGGREGATE":   syntaxKeywordKind,
+		"OVER":        syntaxKeywordKind,
+		"COUNT":       syntaxKeywordKind,
+		"COUNT_UP_TO": syntaxKeywordKind,
+		"SUM":         syntaxKeywordKind,
+		"AVG":         syntaxKeywordKind,
+		"AS":          syntaxKeywordKind,
+		"DISTINCT":    syntaxKeywordKind,
+		"ON":          syntaxKeywordKind,
+		"ORDER":       syntaxKeywordKind,
+		"BY":          syntaxKeywordKind,
+		"LIMIT":       syntaxKeywordKind,
+		"FIRST":       syntaxKeywordKind,
+		"OFFSET":      syntaxKeywordKind,
+		"KEY":         syntaxKeywordKind,
+		"PROJECT":     syntaxKeywordKind,
+		"NAMESPACE":   syntaxKeywordKind,
+		"ARRAY":       syntaxKeywordKind,
+		"BLOB":        syntaxKeywordKind,
+		"DATETIME":    syntaxKeywordKind,
+		"NULL":        syntaxKeywordKind,
+		"AND":         operatorKeywordKind,
+		"OR":          operatorKeywordKind,
+		"IS":          operatorKeywordKind,
+		"CONTAINS":    operatorKeywordKind,
+		"HAS":         operatorKeywordKind,
+		"ANCESTOR":    operatorKeywordKind,
+		"IN":          operatorKeywordKind,
+		"NOT":         operatorKeywordKind,
+		"DESCENDANT":  operatorKeywordKind,
+		"DESC":        orderKeywordKind,
+		"ASC":         orderKeywordKind,
+		"TRUE":        booleanKeywordKind,
+		"FALSE":       booleanKeywordKind,
+	}
 )
 
 func init() {
-	_ = keywordTrie.Add(
-		"SELECT",
-		"FROM",
-		"WHERE",
-		"AGGREGATE",
-		"OVER",
-		"COUNT",
-		"COUNT_UP_TO",
-		"SUM",
-		"AVG",
-		"AS",
-		"DISTINCT",
-		"ON",
-		"ORDER",
-		"BY",
-		"LIMIT",
-		"FIRST",
-		"OFFSET",
-		"KEY",
-		"PROJECT",
-		"NAMESPACE",
-		"ARRAY",
-		"BLOB",
-		"DATETIME",
-		"NULL",
-	)
-	_ = operatorTrie.Add("AND", "OR", "IS", "CONTAINS", "HAS", "ANCESTOR", "IN", "NOT", "DESCENDANT")
-	_ = orderTrie.Add("DESC", "ASC")
-	_ = booleanTrie.Add("TRUE", "FALSE")
+	for k := range keywordKindMap {
+		_ = keywordTrie.Add(k)
+	}
 }
 
 // NewLexer creates a new Lexer instance.
@@ -144,24 +163,30 @@ func (l *Lexer) Read() (Token, error) {
 		return t, nil
 
 	default:
-		if v, ok := keywordTrie.LongestMatchPrefixOf(l.source[l.position:]); ok {
+		v, ok := keywordTrie.LongestMatchPrefixOf(l.source[l.position:])
+		if !ok {
+			return l.takeSymbolToken()
+		}
+
+		switch keywordKindMap[v] {
+		case syntaxKeywordKind:
 			t := &KeywordToken{Name: v, RawContent: l.source[l.position : l.position+len(v)], Position: l.position}
 			l.position += len(v)
 			return t, nil
-		} else if v, ok := operatorTrie.LongestMatchPrefixOf(l.source[l.position:]); ok {
+		case operatorKeywordKind:
 			t := &OperatorToken{Type: v, RawContent: l.source[l.position : l.position+len(v)], Position: l.position}
 			l.position += len(v)
 			return t, nil
-		} else if v, ok := orderTrie.LongestMatchPrefixOf(l.source[l.position:]); ok {
+		case orderKeywordKind:
 			t := &OrderToken{Descending: v == "DESC", RawContent: l.source[l.position : l.position+len(v)], Position: l.position}
 			l.position += len(v)
 			return t, nil
-		} else if v, ok := booleanTrie.LongestMatchPrefixOf(l.source[l.position:]); ok {
+		case booleanKeywordKind:
 			t := &BooleanToken{Value: v == "TRUE", RawContent: l.source[l.position : l.position+len(v)], Position: l.position}
 			l.position += len(v)
 			return t, nil
-		} else {
-			return l.takeSymbolToken()
+		default:
+			panic(fmt.Errorf("unknown keyword: %s", v))
 		}
 	}
 }
@@ -178,7 +203,6 @@ func (l *Lexer) takeSymbolToken() (Token, error) {
 // Unread un-reads the last read token.
 // This allows for backtracking in the token stream.
 // It should be called after Read() if you want to go back to the previous token.
-// It returns an error if there was a problem un-reading the token.
 func (l *Lexer) Unread(t Token) {
 	l.buffer = append(l.buffer, t)
 }
